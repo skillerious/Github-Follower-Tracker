@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Follower Checker</title>
+  
+  <!-- Load Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <style>
+    /* General body and text styling */
+    body {
+      background-color: #181a1b;
+      color: #f5f5f5;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;  /* Hide overall body scrollbars */
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Hide all scrollbars */
+    ::-webkit-scrollbar {
+      display: none; /* Hide scrollbar for WebKit browsers */
+    }
+
+    body {
+      scrollbar-width: none; /* Firefox */
+    }
+
+    /* Toolbar styling with fade effect */
+    .toolbar {
+      background-color: #202124;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      width: 100%;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .toolbar.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .toolbar .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .toolbar button {
+      background-color: transparent;
+      border: none;
+      color: #61dafb;
+      padding: 10px;
+      font-size: 1.2em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 0.3s ease;
+    }
+
+    .toolbar button:hover {
+      background-color: #333;
+      border-radius: 5px;
+    }
+
+    /* Sidebar panel styling */
+    .sidebar {
+      width: 250px;
+      background-color: #2b2d30;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+      transition: width 0.3s ease, visibility 0.3s ease;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Fully hide the sidebar when collapsed */
+    .sidebar.collapsed {
+      width: 0;
+      padding: 0;
+      visibility: hidden;
+      overflow: hidden;
+    }
+
+    .collapse-btn {
+      background-color: #1e1f21;
+      border: none;
+      color: #61dafb;
+      cursor: pointer;
+      font-size: 1.4em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 35px;
+      height: 35px;
+      margin-left: 10px; /* Add buffer to the collapse button */
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease;
+    }
+
+    .collapse-btn i {
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar.collapsed .collapse-btn i {
+      transform: rotate(180deg);
+    }
+
+    /* Card-style section for stats */
+    .card-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background-color: #1f1f1f;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background-color 0.3s ease;
+    }
+
+    .card:hover {
+      background-color: #2a2e35;
+    }
+
+    .card .card-icon {
+      font-size: 2em;
+      color: #61dafb;
+    }
+
+    .card .card-content {
+      text-align: right;
+      font-size: 1.2em;
+      color: #f5f5f5;
+    }
+
+    .card .card-content .value {
+      font-size: 1.6em;
+      font-weight: bold;
+      color: #61dafb;
+    }
+
+    /* Table container for content */
+    .content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto; /* Ensure scrolling only for table */
+    }
+
+    /* Table styling */
+    table {
+      width: 100%;
+      margin: 40px 0;
+      border-collapse: collapse;
+      background-color: #1f1f1f;
+      color: #f5f5f5;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    table th, table td {
+      padding: 15px;
+      text-align: left;
+    }
+
+    table th {
+      background-color: #2c2f33;
+      color: #61dafb;
+      font-size: 1.2em;
+      text-transform: uppercase;
+    }
+
+    table td {
+      border-top: 1px solid #383838;
+      vertical-align: middle;
+    }
+
+    table tr:hover {
+      background-color: #2a2e35;
+    }
+
+    /* Avatar styling */
+    .avatar {
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      margin-right: 10px;
+    }
+
+    /* Profile button styling */
+    .profile-btn {
+      padding: 8px 16px;
+      background-color: #61dafb;
+      color: #1c1c1e;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      font-size: 1.1em;
+    }
+
+    .profile-btn:hover {
+      background-color: #4faedb;
+    }
+
+    /* Follow/Unfollow button styling */
+    .action-btn {
+      padding: 8px 16px;
+      background-color: #ff5252;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      font-size: 1.1em;
+    }
+
+    .action-btn.follow {
+      background-color: #61dafb;
+    }
+
+    .action-btn:hover {
+      background-color: #e53935;
+    }
+
+    /* Unfollowers section styling */
+    #unfollowers {
+      width: 100%;
+      margin: 20px 0;
+      padding: 20px;
+      background-color: #1f1f1f;
+      color: #ff5252;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      font-size: 1.3em;
+    }
+
+    /* Return to Top Button Styling */
+    #return-to-top {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #61dafb;
+      color: #1c1c1e;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.4em;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      transition: opacity 0.3s ease, background-color 0.3s ease;
+    }
+
+    #return-to-top:hover {
+      background-color: #4faedb;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar with statistics using card design -->
+  <div class="sidebar" id="sidebar">
+    <div class="card-container">
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Followers</span>
+          <span class="value" id="total-followers">--</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-user-friends"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Following</span>
+          <span class="value" id="total-following">--</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-user-slash"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Unfollowers</span>
+          <span class="value" id="unfollowers-count">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content area -->
+  <div class="content">
+    <div class="toolbar" id="toolbar">
+      <!-- Collapse button -->
+      <button class="collapse-btn" id="collapse-btn">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      
+      <!-- Buttons aligned to the right -->
+      <div class="buttons">
+        <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+        <button id="settings-btn"><i class="fas fa-cog"></i> Settings</button>
+        <button id="exit-btn"><i class="fas fa-sign-out-alt"></i> Exit</button>
+      </div>
+    </div>
+
+    <!-- Table to show followers and following status -->
+    <table id="followers-list" border="1">
+      <thead>
+        <tr>
+          <th>Avatar</th>
+          <th>Follower</th>
+          <th>Following Back?</th>
+          <th>Profile</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+
+    <!-- Section to show unfollowers -->
+    <div id="unfollowers"></div>
+  </div>
+
+  <!-- Return to Top Button -->
+  <button id="return-to-top" title="Return to top">
+    <i class="fas fa-arrow-up"></i>
+  </button>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>
