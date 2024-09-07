@@ -9,10 +9,30 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   
   <style>
+    :root {
+      --background-color: #181a1b;
+      --text-color: #f5f5f5;
+      --toolbar-background: #202124;
+      --sidebar-background: #2b2d30;
+      --card-background: #1f1f1f;
+      --table-background: #1f1f1f;
+      --accent-color: #61dafb;
+    }
+
+    /* Light Theme */
+    .light {
+      --background-color: #f5f5f5;
+      --text-color: #181a1b;
+      --toolbar-background: #e0e0e0;
+      --sidebar-background: #ffffff;
+      --card-background: #ffffff;
+      --table-background: #ffffff;
+    }
+
     /* General body and text styling */
     body {
-      background-color: #181a1b;
-      color: #f5f5f5;
+      background-color: var(--background-color);
+      color: var(--text-color);
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
       padding: 0;
@@ -32,7 +52,7 @@
 
     /* Toolbar styling with fade effect */
     .toolbar {
-      background-color: #202124;
+      background-color: var(--toolbar-background);
       padding: 15px;
       display: flex;
       justify-content: space-between;
@@ -46,6 +66,7 @@
       transition: opacity 0.3s ease, visibility 0.3s ease;
       opacity: 1;
       visibility: visible;
+      color: var(--text-color);
     }
 
     .toolbar.hidden {
@@ -61,7 +82,7 @@
     .toolbar button {
       background-color: transparent;
       border: none;
-      color: #61dafb;
+      color: var(--accent-color);
       padding: 10px;
       font-size: 1.2em;
       cursor: pointer;
@@ -79,7 +100,7 @@
     /* Sidebar panel styling */
     .sidebar {
       width: 250px;
-      background-color: #2b2d30;
+      background-color: var(--sidebar-background);
       padding: 20px;
       box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
       transition: width 0.3s ease, visibility 0.3s ease;
@@ -87,6 +108,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      color: var(--text-color);
     }
 
     /* Fully hide the sidebar when collapsed */
@@ -100,7 +122,7 @@
     .collapse-btn {
       background-color: #1e1f21;
       border: none;
-      color: #61dafb;
+      color: var(--accent-color);
       cursor: pointer;
       font-size: 1.4em;
       display: flex;
@@ -129,7 +151,7 @@
     }
 
     .card {
-      background-color: #1f1f1f;
+      background-color: var(--card-background);
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -137,6 +159,7 @@
       align-items: center;
       justify-content: space-between;
       transition: background-color 0.3s ease;
+      color: var(--text-color);
     }
 
     .card:hover {
@@ -145,19 +168,19 @@
 
     .card .card-icon {
       font-size: 2em;
-      color: #61dafb;
+      color: var(--accent-color);
     }
 
     .card .card-content {
       text-align: right;
       font-size: 1.2em;
-      color: #f5f5f5;
+      color: var(--text-color);
     }
 
     .card .card-content .value {
       font-size: 1.6em;
       font-weight: bold;
-      color: #61dafb;
+      color: var(--accent-color);
     }
 
     /* Table container for content */
@@ -172,8 +195,8 @@
       width: 100%;
       margin: 40px 0;
       border-collapse: collapse;
-      background-color: #1f1f1f;
-      color: #f5f5f5;
+      background-color: var(--table-background);
+      color: var(--text-color);
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       overflow: hidden;
@@ -186,7 +209,7 @@
 
     table th {
       background-color: #2c2f33;
-      color: #61dafb;
+      color: var(--accent-color);
       font-size: 1.2em;
       text-transform: uppercase;
     }
@@ -212,7 +235,7 @@
     /* Profile button styling */
     .profile-btn {
       padding: 8px 16px;
-      background-color: #61dafb;
+      background-color: var(--accent-color);
       color: #1c1c1e;
       border: none;
       border-radius: 6px;
@@ -238,7 +261,7 @@
     }
 
     .action-btn.follow {
-      background-color: #61dafb;
+      background-color: var(--accent-color);
     }
 
     .action-btn:hover {
@@ -250,7 +273,7 @@
       width: 100%;
       margin: 20px 0;
       padding: 20px;
-      background-color: #1f1f1f;
+      background-color: var(--card-background);
       color: #ff5252;
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -262,7 +285,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background-color: #61dafb;
+      background-color: var(--accent-color);
       color: #1c1c1e;
       border: none;
       border-radius: 50%;

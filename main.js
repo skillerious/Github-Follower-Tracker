@@ -1,13 +1,76 @@
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 
+let mainWindow;
+let tray = null;
+let settingsWindow = null;
+let intervalId;
+
 const tokenFile = path.join(__dirname, 'token.json');
 const followersFile = path.join(__dirname, 'followers.json');
+const settingsFile = path.join(__dirname, 'settings.json');
 
+// Load settings or return default settings
+function loadSettings() {
+  if (!fs.existsSync(settingsFile)) {
+    return {
+      refreshInterval: 5, // Default to 5 minutes
+      notificationsEnabled: true,
+      launchOnStartup: false,
+      closeToTray: true, // Default value for "Close to Tray"
+      theme: 'dark',
+      accentColor: '#61dafb'
+    };
+  }
+  const data = fs.readFileSync(settingsFile, 'utf-8');
+  return JSON.parse(data);
+}
+
+// Save settings to settings.json
+function saveSettings(settings) {
+  fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
+}
+
+// Apply settings dynamically
+function applySettings() {
+  const settings = loadSettings();
+
+  // Apply refresh interval
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
+  intervalId = setInterval(() => {
+    checkForUnfollowers();
+  }, settings.refreshInterval * 60 * 1000);
+
+  // Apply notifications and theme settings
+  if (settings.notificationsEnabled) {
+    mainWindow.webContents.send('enable-notifications');
+  } else {
+    mainWindow.webContents.send('disable-notifications');
+  }
+
+  // Apply theme and accent color
+  mainWindow.webContents.send('update-theme', settings.theme, settings.accentColor);
+
+  // Apply "Close to Tray" setting dynamically
+  mainWindow.removeAllListeners('close'); // Remove any existing listeners to avoid duplicates
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting && settings.closeToTray) {
+      event.preventDefault();
+      mainWindow.hide();  // Hide the window, keep the app running in the background
+    } else {
+      app.isQuitting = true;
+      app.quit();
+    }
+  });
+}
+
+// Create main window
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -16,11 +79,40 @@ function createWindow() {
       contextIsolation: false
     }
   });
-  win.loadFile('index.html');
+  mainWindow.loadFile('index.html');
+
+  // Apply settings once the window is ready
+  mainWindow.webContents.on('did-finish-load', () => {
+    applySettings(); // Apply settings to the UI when window loads
+  });
 }
+
+// Create settings window
+ipcMain.on('open-settings', () => {
+  if (!settingsWindow) {
+    settingsWindow = new BrowserWindow({
+      width: 500,
+      height: 600,
+      modal: true,
+      parent: mainWindow,
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    settingsWindow.loadFile('settings.html');
+
+    settingsWindow.on('closed', () => {
+      settingsWindow = null;
+    });
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();
+  createTray();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -29,20 +121,32 @@ app.whenReady().then(() => {
   });
 });
 
-// Automatically check for unfollowers every 5 minutes (300,000 milliseconds)
-let intervalId;
-app.whenReady().then(() => {
-  intervalId = setInterval(() => {
-    checkForUnfollowers();
-  }, 300000); // 5 minutes
-});
-
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    clearInterval(intervalId); // Clear the interval when the app closes
+    clearInterval(intervalId); 
     app.quit();
   }
 });
+
+// Create tray icon and menu
+function createTray() {
+  tray = new Tray(path.join(__dirname, 'icon.png'));
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Show App', click: () => { mainWindow.show(); } },
+    { label: 'Exit', click: () => {
+      app.isQuitting = true;
+      app.quit();
+    }},
+  ]);
+
+  tray.setToolTip('GitHub Follower Checker');
+  tray.setContextMenu(contextMenu);
+
+  tray.on('click', () => {
+    mainWindow.show();
+  });
+}
 
 // Check for unfollowers
 async function checkForUnfollowers() {
@@ -64,7 +168,6 @@ async function checkForUnfollowers() {
       }
     }
 
-    // Save the current followers list for future comparisons
     fs.writeFileSync(followersFile, JSON.stringify({ followers, lastChecked: new Date() }));
   } catch (error) {
     console.error("Error checking for unfollowers:", error);
@@ -94,16 +197,19 @@ async function getFollowers(token, username) {
 
 // Send notifications if unfollowers are detected
 function notifyUnfollowers(unfollowers) {
+  const settings = loadSettings();
+  if (!settings.notificationsEnabled) return;
+
   unfollowers.forEach(unfollower => {
     new Notification({
       title: 'Unfollower Detected!',
       body: `${unfollower.login} has unfollowed you.`,
-      icon: unfollower.avatar_url // Show avatar if available
+      icon: unfollower.avatar_url 
     }).show();
   });
 }
 
-// Follow a GitHub user
+// IPC handlers for various actions
 ipcMain.handle('follow-user', async (event, token, username) => {
   try {
     await axios.put(`https://api.github.com/user/following/${username}`, {}, {
@@ -116,7 +222,6 @@ ipcMain.handle('follow-user', async (event, token, username) => {
   }
 });
 
-// Unfollow a GitHub user
 ipcMain.handle('unfollow-user', async (event, token, username) => {
   try {
     await axios.delete(`https://api.github.com/user/following/${username}`, {
@@ -129,7 +234,6 @@ ipcMain.handle('unfollow-user', async (event, token, username) => {
   }
 });
 
-// Read token and username from file or return null if not found or invalid
 ipcMain.handle('check-token', async (event) => {
   try {
     if (!fs.existsSync(tokenFile)) {
@@ -154,94 +258,75 @@ ipcMain.handle('check-token', async (event) => {
   }
 });
 
-// Save token and username to file
 ipcMain.handle('save-token', async (event, token, username) => {
   fs.writeFileSync(tokenFile, JSON.stringify({ token, username }));
 });
 
-// Fetch GitHub followers
 ipcMain.handle('get-followers', async (event, token, username) => {
   try {
     const response = await axios.get(`https://api.github.com/users/${username}/followers`, {
       headers: { Authorization: `token ${token}` }
     });
-    return response.data;  // Return full follower objects
+    return response.data;  
   } catch (error) {
     console.error("Error fetching followers:", error);
     return [];
   }
 });
 
-// Fetch GitHub following
 ipcMain.handle('get-following', async (event, token, username) => {
   try {
     const response = await axios.get(`https://api.github.com/users/${username}/following`, {
       headers: { Authorization: `token ${token}` }
     });
-    return response.data;  // Return full following objects
+    return response.data;  
   } catch (error) {
     console.error("Error fetching following:", error);
     return [];
   }
 });
 
-// Handle exit event from the renderer process
-ipcMain.on('exit-app', () => {
-  app.quit();
-});
-
-// Store current followers and compare with the previous list to find unfollowers
-ipcMain.handle('store-followers', async (event, followers) => {
+ipcMain.handle('store-followers', async (event, followers, username) => {
   let previousFollowers = [];
+  const followersFile = path.join(__dirname, `${username}_followers.json`);
   if (fs.existsSync(followersFile)) {
     const data = JSON.parse(fs.readFileSync(followersFile));
     previousFollowers = data.followers || [];
   }
 
-  // Store new followers in file
   fs.writeFileSync(followersFile, JSON.stringify({ followers, lastChecked: new Date() }));
 
-  // Compare current followers with previous followers
   const unfollowers = previousFollowers.filter(prevFollower =>
     !followers.some(currentFollower => currentFollower.login === prevFollower.login)
   );
 
-  // Send a notification if there are unfollowers
   if (unfollowers.length > 0) {
     notifyUnfollowers(unfollowers);
   }
 });
 
-// Compare previous and current followers
-ipcMain.handle('compare-followers', async () => {
-  if (!fs.existsSync(followersFile)) {
-    return [];
-  }
-  const data = JSON.parse(fs.readFileSync(followersFile));
-  return data.followers;
-});
-
-// Handler to retrieve previous followers from JSON (Create the file if it doesn't exist)
 ipcMain.handle('get-previous-followers', (event, username) => {
   const followersFile = path.join(__dirname, `${username}_followers.json`);
   
-  // Check if the file exists
   if (fs.existsSync(followersFile)) {
-    return JSON.parse(fs.readFileSync(followersFile, 'utf8')); // Return previous followers
+    return JSON.parse(fs.readFileSync(followersFile)).followers;
   } else {
-    // If the file doesn't exist, create an empty JSON file
-    fs.writeFileSync(followersFile, JSON.stringify([])); 
-    return []; // Return an empty array as there are no previous followers
+    fs.writeFileSync(followersFile, JSON.stringify([]));
+    return [];
   }
 });
 
-// Function to send Windows notification for unfollowers
-function notifyUnfollowers(unfollowers) {
-  unfollowers.forEach(unfollower => {
-    new Notification({
-      title: 'Unfollower Detected!',
-      body: `${unfollower.login} has unfollowed you.`,
-      icon: unfollower.avatar_url // Show avatar if available
-    }).show();
-  });
-}
+ipcMain.on('exit-app', () => {
+  app.quit();
+});
+
+ipcMain.handle('load-settings', async () => {
+  return loadSettings();
+});
+
+ipcMain.handle('save-settings', (event, newSettings) => {
+  const settings = loadSettings();
+  const updatedSettings = { ...settings, ...newSettings };
+  saveSettings(updatedSettings);
+  applySettings(); // Re-apply settings after saving
+});

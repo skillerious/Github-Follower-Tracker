@@ -1,5 +1,6 @@
 const { ipcRenderer } = require('electron');
 
+// Initialize and fetch token data on load
 window.onload = async () => {
   try {
     let tokenData = await ipcRenderer.invoke('check-token');
@@ -36,11 +37,16 @@ window.onload = async () => {
     });
 
     document.getElementById('settings-btn').addEventListener('click', () => {
-      alert('Settings coming soon...');
+      ipcRenderer.send('open-settings');  // Open the settings window
     });
 
     document.getElementById('exit-btn').addEventListener('click', () => {
       ipcRenderer.send('exit-app');
+    });
+    
+    // Add listeners for theme and accent color updates
+    ipcRenderer.on('update-theme', (event, theme, accentColor) => {
+      applyTheme(theme, accentColor);
     });
 
     // Collapse/Expand sidebar from the toolbar
@@ -93,6 +99,12 @@ window.onload = async () => {
     alert('An error occurred. Please check the console for more details.');
   }
 };
+
+// Function to apply theme and accent color
+function applyTheme(theme, accentColor) {
+  document.body.className = theme; // Apply theme class to body
+  document.documentElement.style.setProperty('--accent-color', accentColor); // Apply accent color
+}
 
 // Function to fetch followers and following data and update the statistics panel
 async function fetchGitHubData(token, username) {
