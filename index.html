@@ -7,53 +7,34 @@
   
   <!-- Load Font Awesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  
+  <!-- Load Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
   <style>
-    :root {
-      --background-color: #181a1b;
-      --text-color: #f5f5f5;
-      --toolbar-background: #202124;
-      --sidebar-background: #2b2d30;
-      --card-background: #1f1f1f;
-      --table-background: #1f1f1f;
-      --accent-color: #61dafb;
-    }
-
-    /* Light Theme */
-    .light {
-      --background-color: #f5f5f5;
-      --text-color: #181a1b;
-      --toolbar-background: #e0e0e0;
-      --sidebar-background: #ffffff;
-      --card-background: #ffffff;
-      --table-background: #ffffff;
-    }
-
     /* General body and text styling */
     body {
-      background-color: var(--background-color);
-      color: var(--text-color);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #181a1b;
+      color: #f5f5f5;
+      font-family: 'Roboto', sans-serif;
       margin: 0;
       padding: 0;
-      overflow: hidden;  /* Hide overall body scrollbars */
+      overflow: hidden;
       display: flex;
+      flex-direction: column;
       height: 100vh;
     }
 
-    /* Hide all scrollbars */
     ::-webkit-scrollbar {
-      display: none; /* Hide scrollbar for WebKit browsers */
+      display: none;
     }
 
     body {
-      scrollbar-width: none; /* Firefox */
+      scrollbar-width: none;
     }
 
-    /* Toolbar styling with fade effect */
     .toolbar {
-      background-color: var(--toolbar-background);
-      padding: 15px;
+      background-color: #202124;
+      padding: 10px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -66,23 +47,54 @@
       transition: opacity 0.3s ease, visibility 0.3s ease;
       opacity: 1;
       visibility: visible;
-      color: var(--text-color);
     }
 
-    .toolbar.hidden {
-      opacity: 0;
-      visibility: hidden;
+    .toolbar .app-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .toolbar .app-info .logo {
+      display: flex;
+      align-items: center;
+    }
+
+    .toolbar .app-info .logo img {
+      height: 30px;
+      margin-right: 8px;
+    }
+
+    .toolbar .app-info .title {
+      font-size: 1.3em;
+      font-weight: 500;
+      color: #61dafb;
+    }
+
+    .toolbar .theme-switch {
+      cursor: pointer;
+      padding: 5px 10px;
+      background-color: #333;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      color: #61dafb;
+    }
+
+    .toolbar .theme-switch i {
+      margin-right: 5px;
     }
 
     .toolbar .buttons {
       display: flex;
       gap: 10px;
+      margin-right: 10px;
     }
 
     .toolbar button {
       background-color: transparent;
       border: none;
-      color: var(--accent-color);
+      color: #61dafb;
       padding: 10px;
       font-size: 1.2em;
       cursor: pointer;
@@ -90,6 +102,7 @@
       align-items: center;
       gap: 8px;
       transition: background-color 0.3s ease;
+      margin-right: 15px;
     }
 
     .toolbar button:hover {
@@ -97,21 +110,24 @@
       border-radius: 5px;
     }
 
-    /* Sidebar panel styling */
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 50px);
+    }
+
     .sidebar {
       width: 250px;
-      background-color: var(--sidebar-background);
+      background-color: #2b2d30;
       padding: 20px;
       box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
       transition: width 0.3s ease, visibility 0.3s ease;
-      height: 100%;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      color: var(--text-color);
+      overflow-y: auto;
     }
 
-    /* Fully hide the sidebar when collapsed */
     .sidebar.collapsed {
       width: 0;
       padding: 0;
@@ -119,84 +135,66 @@
       overflow: hidden;
     }
 
-    .collapse-btn {
-      background-color: #1e1f21;
-      border: none;
-      color: var(--accent-color);
-      cursor: pointer;
-      font-size: 1.4em;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 35px;
-      height: 35px;
-      margin-left: 10px; /* Add buffer to the collapse button */
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-      transition: transform 0.3s ease;
-    }
-
-    .collapse-btn i {
-      transition: transform 0.3s ease;
-    }
-
-    .sidebar.collapsed .collapse-btn i {
-      transform: rotate(180deg);
-    }
-
-    /* Card-style section for stats */
     .card-container {
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
 
+    /* Updated card styling with a modern look and no white shadow */
     .card {
-      background-color: var(--card-background);
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      background: #1f1f1f;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* Only a dark shadow */
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: background-color 0.3s ease;
-      color: var(--text-color);
+      padding: 20px;
+      transition: transform 0.3s ease, background 0.3s ease;
+      cursor: pointer;
     }
 
     .card:hover {
-      background-color: #2a2e35;
+      background: #25282b;
+      transform: scale(1.05);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5); /* Slightly stronger dark shadow on hover */
     }
 
     .card .card-icon {
-      font-size: 2em;
-      color: var(--accent-color);
+      font-size: 2.5em;
+      color: #61dafb;
+      transition: color 0.3s ease;
+    }
+
+    .card:hover .card-icon {
+      color: #4faedb;
     }
 
     .card .card-content {
       text-align: right;
       font-size: 1.2em;
-      color: var(--text-color);
+      color: #f5f5f5;
+      transition: color 0.3s ease;
     }
 
     .card .card-content .value {
-      font-size: 1.6em;
+      font-size: 2em;
       font-weight: bold;
-      color: var(--accent-color);
+      color: #61dafb;
     }
 
-    /* Table container for content */
     .content {
       flex: 1;
       padding: 20px;
-      overflow-y: auto; /* Ensure scrolling only for table */
+      overflow-y: auto;
     }
 
-    /* Table styling */
     table {
       width: 100%;
       margin: 40px 0;
       border-collapse: collapse;
-      background-color: var(--table-background);
-      color: var(--text-color);
+      background-color: #1f1f1f;
+      color: #f5f5f5;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       overflow: hidden;
@@ -209,7 +207,7 @@
 
     table th {
       background-color: #2c2f33;
-      color: var(--accent-color);
+      color: #61dafb;
       font-size: 1.2em;
       text-transform: uppercase;
     }
@@ -223,7 +221,6 @@
       background-color: #2a2e35;
     }
 
-    /* Avatar styling */
     .avatar {
       border-radius: 50%;
       width: 50px;
@@ -232,10 +229,9 @@
       margin-right: 10px;
     }
 
-    /* Profile button styling */
     .profile-btn {
       padding: 8px 16px;
-      background-color: var(--accent-color);
+      background-color: #61dafb;
       color: #1c1c1e;
       border: none;
       border-radius: 6px;
@@ -248,7 +244,6 @@
       background-color: #4faedb;
     }
 
-    /* Follow/Unfollow button styling */
     .action-btn {
       padding: 8px 16px;
       background-color: #ff5252;
@@ -261,31 +256,29 @@
     }
 
     .action-btn.follow {
-      background-color: var(--accent-color);
+      background-color: #61dafb;
     }
 
     .action-btn:hover {
       background-color: #e53935;
     }
 
-    /* Unfollowers section styling */
     #unfollowers {
       width: 100%;
       margin: 20px 0;
       padding: 20px;
-      background-color: var(--card-background);
+      background-color: #1f1f1f;
       color: #ff5252;
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       font-size: 1.3em;
     }
 
-    /* Return to Top Button Styling */
     #return-to-top {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background-color: var(--accent-color);
+      background-color: #61dafb;
       color: #1c1c1e;
       border: none;
       border-radius: 50%;
@@ -307,6 +300,25 @@
 </head>
 <body>
 
+  <!-- Toolbar with App Info and Theme Switcher -->
+  <div class="toolbar" id="toolbar">
+    <div class="app-info">
+      <div class="logo">
+        <img src="icon.png" alt="App Logo">
+        <span class="title">GitHub Follower Checker</span>
+      </div>
+    </div>
+
+    <!-- Buttons aligned to the right -->
+    <div class="buttons">
+      <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+      <button id="settings-btn"><i class="fas fa-cog"></i> Settings</button>
+      <button id="exit-btn"><i class="fas fa-sign-out-alt"></i> Exit</button>
+    </div>
+  </div>
+
+  <!-- Main container with sidebar and content -->
+<div class="main-container">
   <!-- Sidebar with statistics using card design -->
   <div class="sidebar" id="sidebar">
     <div class="card-container">
@@ -315,7 +327,7 @@
           <i class="fas fa-users"></i>
         </div>
         <div class="card-content">
-          <span class="label">Followers</span>
+          <span class="label">Followers: </span>
           <span class="value" id="total-followers">--</span>
         </div>
       </div>
@@ -324,7 +336,7 @@
           <i class="fas fa-user-friends"></i>
         </div>
         <div class="card-content">
-          <span class="label">Following</span>
+          <span class="label">Following: </span>
           <span class="value" id="total-following">--</span>
         </div>
       </div>
@@ -333,8 +345,55 @@
           <i class="fas fa-user-slash"></i>
         </div>
         <div class="card-content">
-          <span class="label">Unfollowers</span>
+          <span class="label">Unfollowers: </span>
           <span class="value" id="unfollowers-count">--</span>
+        </div>
+      </div>
+
+      <!-- New information cards -->
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-code-branch"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Total Repositories: </span>
+          <span class="value" id="total-repos">--</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-star"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Total Stars: </span>
+          <span class="value" id="total-stars">--</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-code-branch"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Total Forks: </span>
+          <span class="value" id="total-forks">--</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-folder-open"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Latest Repo: </span>
+          <span class="value" id="latest-repo">--</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="card-content">
+          <span class="label">Recent Activity: </span>
+          <span class="value" id="recent-activity">--</span>
         </div>
       </div>
     </div>
@@ -342,20 +401,6 @@
 
   <!-- Main content area -->
   <div class="content">
-    <div class="toolbar" id="toolbar">
-      <!-- Collapse button -->
-      <button class="collapse-btn" id="collapse-btn">
-        <i class="fas fa-chevron-left"></i>
-      </button>
-      
-      <!-- Buttons aligned to the right -->
-      <div class="buttons">
-        <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
-        <button id="settings-btn"><i class="fas fa-cog"></i> Settings</button>
-        <button id="exit-btn"><i class="fas fa-sign-out-alt"></i> Exit</button>
-      </div>
-    </div>
-
     <!-- Table to show followers and following status -->
     <table id="followers-list" border="1">
       <thead>
@@ -374,6 +419,7 @@
     <!-- Section to show unfollowers -->
     <div id="unfollowers"></div>
   </div>
+</div>
 
   <!-- Return to Top Button -->
   <button id="return-to-top" title="Return to top">
