@@ -10,7 +10,14 @@ let intervalId;
 
 const tokenFile = path.join(__dirname, 'token.json');
 const followersFile = path.join(__dirname, 'followers.json');
+const unfollowersFile = path.join(__dirname, 'unfollowers.json');  // New file for unfollowers
 const settingsFile = path.join(__dirname, 'settings.json');
+
+
+// Ensure unfollowers.json exists
+if (!fs.existsSync(unfollowersFile)) {
+  fs.writeFileSync(unfollowersFile, JSON.stringify({ unfollowers: [], lastChecked: new Date().toISOString() }, null, 2));
+}
 
 // Load settings or return default settings
 function loadSettings() {
@@ -73,7 +80,6 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
-    //autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'renderer.js'),
       nodeIntegration: true,
@@ -166,6 +172,7 @@ async function checkForUnfollowers() {
 
       if (unfollowers.length > 0) {
         notifyUnfollowers(unfollowers);
+        storeUnfollowers(unfollowers);  // Store unfollowers to the file
       }
     }
 
@@ -173,6 +180,11 @@ async function checkForUnfollowers() {
   } catch (error) {
     console.error("Error checking for unfollowers:", error);
   }
+}
+
+// Store unfollowers to the file
+function storeUnfollowers(unfollowers) {
+  fs.writeFileSync(unfollowersFile, JSON.stringify({ unfollowers, lastChecked: new Date() }));
 }
 
 // Helper function to get the token and username from the saved file
@@ -211,16 +223,12 @@ function notifyUnfollowers(unfollowers) {
 }
 
 // IPC handlers for various actions
-ipcMain.handle('follow-user', async (event, token, username) => {
-  try {
-    await axios.put(`https://api.github.com/user/following/${username}`, {}, {
-      headers: { Authorization: `token ${token}` }
-    });
-    return { success: true };
-  } catch (error) {
-    console.error('Error following user:', error);
-    return { success: false, error };
+ipcMain.handle('get-unfollowers', () => {
+  if (fs.existsSync(unfollowersFile)) {
+    const data = JSON.parse(fs.readFileSync(unfollowersFile, 'utf-8'));
+    return data.unfollowers || [];
   }
+  return [];
 });
 
 ipcMain.handle('unfollow-user', async (event, token, username) => {
@@ -286,6 +294,31 @@ ipcMain.handle('get-following', async (event, token, username) => {
     return [];
   }
 });
+
+ipcMain.handle('get-user-details', async (event, token, username) => {
+  try {
+    // Fetch user details
+    const userResponse = await axios.get(`https://api.github.com/users/${username}`, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    // Fetch all public repositories for the user
+    const reposResponse = await axios.get(`https://api.github.com/users/${username}/repos`, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    const repositories = reposResponse.data;
+
+    // Calculate the total stars received by summing stargazers_count for each repo
+    const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+
+    return { ...userResponse.data, total_stars: totalStars };
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    return {};
+  }
+});
+
 
 ipcMain.handle('store-followers', async (event, followers, username) => {
   let previousFollowers = [];

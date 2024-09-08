@@ -1,94 +1,29 @@
 const { ipcRenderer } = require('electron');
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Initialize and fetch token data on load
+window.onload = async () => {
   try {
     let tokenData = await ipcRenderer.invoke('check-token');
 
     if (!tokenData) {
       const modal = document.getElementById('input-modal');
-      if (modal) {
-        modal.style.display = 'block';
+      modal.style.display = 'block'; 
+      
+      document.getElementById('save-credentials').addEventListener('click', async () => {
+        const userToken = document.getElementById('github-token').value;
+        const username = document.getElementById('github-username').value;
 
-        const saveCredentialsBtn = document.getElementById('save-credentials');
-        if (saveCredentialsBtn) {
-          saveCredentialsBtn.addEventListener('click', async () => {
-            const userToken = document.getElementById('github-token').value;
-            const username = document.getElementById('github-username').value;
-
-            if (userToken && username) {
-              await ipcRenderer.invoke('save-token', userToken, username);
-              modal.style.display = 'none';
-              tokenData = { token: userToken, username };
-              fetchGitHubData(tokenData.token, tokenData.username);
-            } else {
-              alert("GitHub token and username are required to proceed.");
-            }
-          });
+        if (userToken && username) {
+          await ipcRenderer.invoke('save-token', userToken, username);
+          modal.style.display = 'none';
+          tokenData = { token: userToken, username };
+          fetchGitHubData(tokenData.token, tokenData.username);
+        } else {
+          alert("GitHub token and username are required to proceed.");
         }
-      }
+      });
     } else {
       fetchGitHubData(tokenData.token, tokenData.username);
-    }
-
-    // Toolbar button actions
-    const refreshBtn = document.getElementById('refresh-btn');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', () => {
-        fetchGitHubData(tokenData.token, tokenData.username);
-      });
-    }
-
-    const settingsBtn = document.getElementById('settings-btn');
-    if (settingsBtn) {
-      settingsBtn.addEventListener('click', () => {
-        ipcRenderer.send('open-settings');  // Open the settings window
-      });
-    }
-
-    const exitBtn = document.getElementById('exit-btn');
-    if (exitBtn) {
-      exitBtn.addEventListener('click', () => {
-        ipcRenderer.send('exit-app');
-      });
-    }
-
-    // Add listeners for theme and accent color updates
-    ipcRenderer.on('update-theme', (event, theme, accentColor) => {
-      applyTheme(theme, accentColor);
-    });
-
-    // Return to Top functionality
-    const returnToTopBtn = document.getElementById('return-to-top');
-    const contentDiv = document.querySelector('.content');
-    const toolbar = document.getElementById('toolbar');
-
-    if (contentDiv && returnToTopBtn && toolbar) {
-      contentDiv.addEventListener('scroll', () => {
-        const halfwayPoint = contentDiv.scrollHeight / 2;
-        const scrollTop = contentDiv.scrollTop;
-
-        // Show the "Return to Top" button when scrolling halfway
-        if (scrollTop > halfwayPoint) {
-          returnToTopBtn.style.display = 'flex';
-        } else {
-          returnToTopBtn.style.display = 'none';
-        }
-
-        // Hide toolbar when scrolled down and show when at the top
-        if (scrollTop > 100) {
-          toolbar.classList.add('hidden');
-        } else {
-          toolbar.classList.remove('hidden');
-        }
-      });
-
-      // Scroll back to top when Return to Top button is clicked
-      returnToTopBtn.addEventListener('click', () => {
-        contentDiv.scrollTo({
-          top: 0,
-          behavior: 'smooth'
-        });
-      });
     }
 
     // Fetch GitHub followers data every 5 minutes
@@ -96,11 +31,103 @@ document.addEventListener('DOMContentLoaded', async () => {
       fetchGitHubData(tokenData.token, tokenData.username);
     }, 5 * 60 * 1000); // 5 minutes
 
+    // Toolbar button actions
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+      fetchGitHubData(tokenData.token, tokenData.username);
+    });
+
+    document.getElementById('settings-btn').addEventListener('click', () => {
+      ipcRenderer.send('open-settings');  // Open the settings window
+    });
+
+    document.getElementById('exit-btn').addEventListener('click', () => {
+      ipcRenderer.send('exit-app');
+    });
+    
+    // Add listeners for theme and accent color updates
+    ipcRenderer.on('update-theme', (event, theme, accentColor) => {
+      applyTheme(theme, accentColor);
+    });
+
+
+    // Return to Top functionality
+    const returnToTopBtn = document.getElementById('return-to-top');
+    const contentDiv = document.querySelector('.content');
+    const toolbar = document.getElementById('toolbar');
+
+    contentDiv.addEventListener('scroll', () => {
+      const halfwayPoint = contentDiv.scrollHeight / 2;
+      const scrollTop = contentDiv.scrollTop;
+      
+      // Show the "Return to Top" button when scrolling halfway
+      if (scrollTop > halfwayPoint) {
+        returnToTopBtn.style.display = 'flex';
+      } else {
+        returnToTopBtn.style.display = 'none';
+      }
+
+      // Hide toolbar when scrolled down and show when at the top
+      if (scrollTop > 100) {
+        toolbar.classList.add('hidden');
+      } else {
+        toolbar.classList.remove('hidden');
+      }
+    });
+
+    // Scroll back to top when Return to Top button is clicked
+    returnToTopBtn.addEventListener('click', () => {
+      contentDiv.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+
+    // Fetch unfollowers and display in the table
+    fetchUnfollowers();
+
   } catch (error) {
     console.error('Error in renderer.js:', error);
     alert('An error occurred. Please check the console for more details.');
   }
-});
+};
+
+// Function to fetch unfollowers and update the table
+async function fetchUnfollowers() {
+  try {
+    const unfollowers = await ipcRenderer.invoke('get-unfollowers');
+
+    const unfollowerTable = document.getElementById('unfollowers-list').getElementsByTagName('tbody')[0];
+    unfollowerTable.innerHTML = '';  // Clear the table content
+
+    unfollowers.forEach(unfollower => {
+      const row = unfollowerTable.insertRow();
+      
+      const avatarCell = row.insertCell(0);
+      const avatar = document.createElement('img');
+      avatar.src = unfollower.avatar_url || ''; 
+      avatar.alt = unfollower.login || 'No username';
+      avatar.classList.add('avatar');
+      avatarCell.appendChild(avatar);
+      
+      const nameCell = row.insertCell(1);
+      nameCell.innerText = unfollower.login || 'No username';
+
+      const profileCell = row.insertCell(2);
+      const profileButton = document.createElement('button');
+      profileButton.classList.add('profile-btn');
+      profileButton.innerText = 'View Profile';
+      profileButton.onclick = () => {
+        window.open(unfollower.html_url, '_blank');
+      };
+      profileCell.appendChild(profileButton);
+    });
+
+  } catch (error) {
+    console.error('Error fetching unfollowers:', error);
+  }
+}
+
+// Other functions remain unchanged...
 
 // Function to apply theme and accent color
 function applyTheme(theme, accentColor) {
@@ -108,52 +135,39 @@ function applyTheme(theme, accentColor) {
   document.documentElement.style.setProperty('--accent-color', accentColor); // Apply accent color
 }
 
-// Function to fetch followers, following data, and other GitHub stats
+// Function to fetch followers and following data and update the statistics panel
 async function fetchGitHubData(token, username) {
   try {
-    const [followers, following, repos] = await Promise.all([
+    const [followers, following, userDetails] = await Promise.all([
       ipcRenderer.invoke('get-followers', token, username),
       ipcRenderer.invoke('get-following', token, username),
-      fetchRepos(token, username)
+      ipcRenderer.invoke('get-user-details', token, username)
     ]);
 
-    // Only display the number without the label
-    document.getElementById('total-followers').innerText = followers.length; // Display only the number
-    document.getElementById('total-following').innerText = following.length; // Display only the number
-    document.getElementById('total-repos').innerText = repos.length; // Total number of repositories
-    document.getElementById('total-stars').innerText = getTotalStars(repos); // Total stars count
-    document.getElementById('total-forks').innerText = getTotalForks(repos); // Total forks count
-    document.getElementById('latest-repo').innerText = getLatestRepo(repos); // Latest repository name
+    if (!followers || !following || !userDetails) {
+      throw new Error("Failed to fetch followers, following, or user details.");
+    }
 
-    populateTable(followers, following, token); // Populate table with followers/following info
-    detectUnfollowers(token, username, followers); // Detect and handle unfollowers
+    // Update the profile badge with the user's actual profile picture and username
+    document.getElementById('profile-pic').src = userDetails.avatar_url;
+    document.getElementById('username').innerText = userDetails.login;
+
+    // Update the statistics in the sidebar
+    document.getElementById('total-followers').innerText = followers.length;
+    document.getElementById('total-following').innerText = following.length;
+    document.getElementById('public-repos').innerText = userDetails.public_repos;
+    document.getElementById('stars-received').innerText = userDetails.total_stars;
+    document.getElementById('account-created').innerText = new Date(userDetails.created_at).toLocaleDateString();
+
+    populateTable(followers, following, token);
+    detectUnfollowers(token, username, followers); // Call to detect unfollowers
   } catch (error) {
     console.error('Error fetching GitHub data:', error);
   }
 }
 
 
-// Function to fetch repositories
-async function fetchRepos(token, username) {
-  const response = await fetch(`https://api.github.com/users/${username}/repos`, {
-    headers: { Authorization: `token ${token}` }
-  });
-  return response.json();
-}
 
-// Helper functions to calculate stats
-function getTotalStars(repos) {
-  return repos.reduce((total, repo) => total + repo.stargazers_count, 0);
-}
-
-function getTotalForks(repos) {
-  return repos.reduce((total, repo) => total + repo.forks_count, 0);
-}
-
-function getLatestRepo(repos) {
-  const latestRepo = repos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
-  return latestRepo ? latestRepo.name : 'N/A';
-}
 
 // Function to populate the table with followers, avatars, and follow/unfollow buttons
 function populateTable(followers, following, token) {
@@ -219,7 +233,7 @@ async function detectUnfollowers(token, username, currentFollowers) {
 
       if (unfollowers.length > 0) {
         unfollowers.forEach(unfollower => {
-          if (unfollower.login) {
+          if (unfollower.login) { // Ensure the unfollower has a valid login
             new Notification('Unfollower Detected!', {
               body: `${unfollower.login} has unfollowed you.`
             });
