@@ -138,62 +138,32 @@
       display: none; /* Chrome, Safari, and Opera */
     }
 
-    /* Profile card styling (same as other cards) */
-    .profile-card {
-      background-color: var(--card-background);
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    /* Profile badge styling */
+    .profile-badge {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-      color: var(--text-color);
-      position: relative;
-      overflow: hidden;
       margin-bottom: 20px;
+      padding: 10px;
+      background-color: var(--card-background);
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
     }
 
-    .profile-card:hover {
+    .profile-badge:hover {
       background-color: #2a2e35;
-      transform: translateY(-3px);
-      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
     }
 
-    .profile-card:before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), transparent);
-      transform: translateX(0) rotate(45deg);
-      transition: transform 0.5s ease;
-      z-index: 1;
-    }
-
-    .profile-card:hover:before {
-      transform: translateX(100%) rotate(45deg);
-    }
-
-    .profile-avatar {
+    .profile-badge img {
       width: 50px;
       height: 50px;
       border-radius: 50%;
+      margin-right: 10px;
       box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-      z-index: 2;
     }
 
-    .profile-details {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      position: relative;
-      z-index: 2;
-    }
-
-    .profile-username {
+    .profile-badge .username {
       font-size: 1.2em;
       font-weight: bold;
       color: var(--accent-color);
@@ -439,12 +409,10 @@
 
   <!-- Sidebar with statistics using card design -->
   <div class="sidebar" id="sidebar">
-    <!-- Profile Card -->
-    <div class="profile-card">
-      <img src="profile-pic.png" alt="Profile Picture" id="profile-pic" class="profile-avatar">
-      <div class="profile-details">
-        <span class="profile-username" id="username">Username</span>
-      </div>
+    <!-- Profile Badge -->
+    <div class="profile-badge">
+      <img src="profile-pic.png" alt="Profile Picture" id="profile-pic">
+      <span class="username" id="username">Username</span>
     </div>
 
     <div class="card-container">
@@ -519,6 +487,7 @@
       
       <!-- Right side with buttons -->
       <div class="right">
+        <button id="visualize-btn"><i class="fas fa-chart-bar"></i> Visualize Data</button>
         <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
         <button id="settings-btn"><i class="fas fa-cog"></i> Settings</button>
         <button id="exit-btn"><i class="fas fa-sign-out-alt"></i> Exit</button>

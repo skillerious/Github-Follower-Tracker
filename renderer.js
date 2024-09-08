@@ -43,12 +43,16 @@ window.onload = async () => {
     document.getElementById('exit-btn').addEventListener('click', () => {
       ipcRenderer.send('exit-app');
     });
+
+    // Event Listener for Visualize Data Button
+    document.getElementById('visualize-btn').addEventListener('click', () => {
+      ipcRenderer.send('open-visualizations');
+    });
     
     // Add listeners for theme and accent color updates
     ipcRenderer.on('update-theme', (event, theme, accentColor) => {
       applyTheme(theme, accentColor);
     });
-
 
     // Return to Top functionality
     const returnToTopBtn = document.getElementById('return-to-top');
@@ -127,8 +131,6 @@ async function fetchUnfollowers() {
   }
 }
 
-// Other functions remain unchanged...
-
 // Function to apply theme and accent color
 function applyTheme(theme, accentColor) {
   document.body.className = theme; // Apply theme class to body
@@ -165,9 +167,6 @@ async function fetchGitHubData(token, username) {
     console.error('Error fetching GitHub data:', error);
   }
 }
-
-
-
 
 // Function to populate the table with followers, avatars, and follow/unfollow buttons
 function populateTable(followers, following, token) {

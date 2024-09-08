@@ -6,17 +6,29 @@ const axios = require('axios');
 let mainWindow;
 let tray = null;
 let settingsWindow = null;
+let visualizationsWindow = null; // Window variable for Visualizations
 let intervalId;
 
 const tokenFile = path.join(__dirname, 'token.json');
 const followersFile = path.join(__dirname, 'followers.json');
-const unfollowersFile = path.join(__dirname, 'unfollowers.json');  // New file for unfollowers
+const unfollowersFile = path.join(__dirname, 'unfollowers.json'); // New file for unfollowers
 const settingsFile = path.join(__dirname, 'settings.json');
-
+const followersGrowthFile = path.join(__dirname, 'followers_growth.json');
+const starsGrowthFile = path.join(__dirname, 'monthly_stars_growth.json');
 
 // Ensure unfollowers.json exists
 if (!fs.existsSync(unfollowersFile)) {
   fs.writeFileSync(unfollowersFile, JSON.stringify({ unfollowers: [], lastChecked: new Date().toISOString() }, null, 2));
+}
+
+// Ensure followers_growth.json exists
+if (!fs.existsSync(followersGrowthFile)) {
+  fs.writeFileSync(followersGrowthFile, JSON.stringify({ data: [] }, null, 2));
+}
+
+// Ensure monthly_stars_growth.json exists
+if (!fs.existsSync(starsGrowthFile)) {
+  fs.writeFileSync(starsGrowthFile, JSON.stringify({ data: [] }, null, 2));
 }
 
 // Load settings or return default settings
@@ -63,17 +75,24 @@ function applySettings() {
   mainWindow.webContents.send('update-theme', settings.theme, settings.accentColor);
 
   // Apply "Close to Tray" setting dynamically
-  mainWindow.removeAllListeners('close'); // Remove any existing listeners to avoid duplicates
+  mainWindow.removeAllListeners('close');
   mainWindow.on('close', (event) => {
     if (!app.isQuitting && settings.closeToTray) {
       event.preventDefault();
-      mainWindow.hide();  // Hide the window, keep the app running in the background
+      mainWindow.hide();
     } else {
       app.isQuitting = true;
       app.quit();
     }
   });
+
+  // **Add the tracking interval here:**
+  setInterval(() => {
+    trackFollowersGrowth();
+    trackMonthlyStarGrowth();
+  }, 24 * 60 * 60 * 1000); // 24 hours
 }
+
 
 // Create main window
 function createWindow() {
@@ -88,9 +107,30 @@ function createWindow() {
   });
   mainWindow.loadFile('index.html');
 
+  // Maximize the window after creation
+  mainWindow.maximize();
+
   // Apply settings once the window is ready
   mainWindow.webContents.on('did-finish-load', () => {
     applySettings(); // Apply settings to the UI when window loads
+  });
+}
+
+// Function to create the visualizations window
+function createVisualizationsWindow() {
+  visualizationsWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+  visualizationsWindow.loadFile('visualizations.html');
+
+  visualizationsWindow.on('closed', () => {
+    visualizationsWindow = null;
   });
 }
 
@@ -117,6 +157,23 @@ ipcMain.on('open-settings', () => {
   }
 });
 
+// IPC handler to open the visualizations window
+ipcMain.on('open-visualizations', () => {
+  if (!visualizationsWindow) {
+    createVisualizationsWindow();
+  } else {
+    visualizationsWindow.focus();
+  }
+});
+
+ipcMain.on('go-home', () => {
+  if (mainWindow) {
+    mainWindow.show(); // Bring the main window to focus
+    if (visualizationsWindow) visualizationsWindow.close(); // Close the visualizations window if open
+  }
+});
+
+
 app.whenReady().then(() => {
   createWindow();
   createTray();
@@ -130,7 +187,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    clearInterval(intervalId); 
+    clearInterval(intervalId);
     app.quit();
   }
 });
@@ -182,6 +239,77 @@ async function checkForUnfollowers() {
   }
 }
 
+// Function to track followers growth
+async function trackFollowersGrowth() {
+  const tokenData = getTokenData();
+  if (!tokenData) return;
+
+  try {
+    const followers = await getFollowers(tokenData.token, tokenData.username);
+
+    // Load the existing growth data
+    let followersGrowth = JSON.parse(fs.readFileSync(followersGrowthFile, 'utf-8'));
+
+    // Check if there's already an entry for today
+    const today = new Date().toISOString().split('T')[0]; // Get today's date in 'YYYY-MM-DD' format
+    const todayEntry = followersGrowth.data.find(entry => entry.date === today);
+
+    if (todayEntry) {
+      // Update the entry if it already exists
+      todayEntry.count = followers.length;
+    } else {
+      // Add a new entry for today
+      followersGrowth.data.push({ date: today, count: followers.length });
+    }
+
+    // Save the updated growth data
+    fs.writeFileSync(followersGrowthFile, JSON.stringify(followersGrowth, null, 2));
+  } catch (error) {
+    console.error("Error tracking followers growth:", error);
+  }
+}
+
+// Function to track monthly star growth
+async function trackMonthlyStarGrowth() {
+  const tokenData = getTokenData();
+  if (!tokenData) return;
+
+  try {
+    // Fetch all repositories and calculate total stars
+    const reposResponse = await axios.get(`https://api.github.com/users/${tokenData.username}/repos`, {
+      headers: { Authorization: `token ${tokenData.token}` }
+    });
+
+    const repositories = reposResponse.data;
+
+    // Calculate the total stars received by summing stargazers_count for each repo
+    const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+
+    // Load the existing growth data
+    let starsGrowth = JSON.parse(fs.readFileSync(starsGrowthFile, 'utf-8'));
+
+    // Get the current month and year
+    const currentMonth = new Date().toISOString().substring(0, 7); // Format 'YYYY-MM'
+
+    // Check if there's already an entry for the current month
+    const monthEntry = starsGrowth.data.find(entry => entry.month === currentMonth);
+
+    if (monthEntry) {
+      // Update the entry if it already exists
+      monthEntry.count = totalStars;
+    } else {
+      // Add a new entry for the current month
+      starsGrowth.data.push({ month: currentMonth, count: totalStars });
+    }
+
+    // Save the updated growth data
+    fs.writeFileSync(starsGrowthFile, JSON.stringify(starsGrowth, null, 2));
+  } catch (error) {
+    console.error("Error tracking star growth:", error);
+  }
+}
+
+
 // Store unfollowers to the file
 function storeUnfollowers(unfollowers) {
   fs.writeFileSync(unfollowersFile, JSON.stringify({ unfollowers, lastChecked: new Date() }));
@@ -222,6 +350,79 @@ function notifyUnfollowers(unfollowers) {
   });
 }
 
+// Other ipcMain.handle or ipcMain.on functions
+
+ipcMain.handle('get-visualization-data', async () => {
+  try {
+    const tokenData = getTokenData();
+    if (!tokenData) return {};
+
+    const followers = await getFollowers(tokenData.token, tokenData.username);
+    const following = await getFollowing(tokenData.token, tokenData.username);
+    const topReposByStars = await getTopRepositoriesByStars(tokenData.token, tokenData.username);
+
+    // Load growth data
+    const followersGrowth = JSON.parse(fs.readFileSync(followersGrowthFile, 'utf-8'));
+    const starsGrowth = JSON.parse(fs.readFileSync(starsGrowthFile, 'utf-8'));
+
+    const data = {
+      followersGrowth: followersGrowth.data,
+      followers: followers.length,
+      following: following.length,
+      topRepos: topReposByStars,
+      monthlyStars: starsGrowth.data
+    };
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching visualization data:", error);
+    return {};
+  }
+});
+
+// Function to fetch repositories and sort them by stars
+async function getTopRepositoriesByStars(token, username) {
+  try {
+    const response = await axios.get(`https://api.github.com/users/${username}/repos`, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    const repositories = response.data;
+
+    // Sort repositories by stargazers_count in descending order
+    const sortedRepos = repositories.sort((a, b) => b.stargazers_count - a.stargazers_count);
+
+    // Limit to top 5 repositories (or any number you want)
+    const topRepos = sortedRepos.slice(0, 5);
+
+    // Prepare data for visualization
+    const data = {
+      labels: topRepos.map(repo => repo.name),
+      data: topRepos.map(repo => repo.stargazers_count)
+    };
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching top repositories by stars:", error);
+    return { labels: [], data: [] }; // Return empty data on error
+  }
+}
+
+
+// Correct function to fetch the following list
+async function getFollowing(token, username) {
+  try {
+    const response = await axios.get(`https://api.github.com/users/${username}/following`, {
+      headers: { Authorization: `token ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching following:", error);
+    return [];
+  }
+}
+
+
 // IPC handlers for various actions
 ipcMain.handle('get-unfollowers', () => {
   if (fs.existsSync(unfollowersFile)) {
@@ -230,6 +431,7 @@ ipcMain.handle('get-unfollowers', () => {
   }
   return [];
 });
+
 
 ipcMain.handle('unfollow-user', async (event, token, username) => {
   try {
@@ -318,7 +520,6 @@ ipcMain.handle('get-user-details', async (event, token, username) => {
     return {};
   }
 });
-
 
 ipcMain.handle('store-followers', async (event, followers, username) => {
   let previousFollowers = [];
