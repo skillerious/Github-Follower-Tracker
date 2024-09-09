@@ -101,7 +101,7 @@ async function fetchUnfollowers() {
     const unfollowers = await ipcRenderer.invoke('get-unfollowers');
 
     const unfollowerTable = document.getElementById('unfollowers-list').getElementsByTagName('tbody')[0];
-    unfollowerTable.innerHTML = '';  // Clear the table content
+    unfollowerTable.innerHTML = ''; // Clear the table content
 
     unfollowers.forEach(unfollower => {
       const row = unfollowerTable.insertRow();
@@ -131,6 +131,7 @@ async function fetchUnfollowers() {
   }
 }
 
+
 // Function to apply theme and accent color
 function applyTheme(theme, accentColor) {
   document.body.className = theme; // Apply theme class to body
@@ -140,21 +141,25 @@ function applyTheme(theme, accentColor) {
 // Function to fetch followers and following data and update the statistics panel
 async function fetchGitHubData(token, username) {
   try {
+    console.log('Fetching GitHub data for user:', username);
+
     const [followers, following, userDetails] = await Promise.all([
       ipcRenderer.invoke('get-followers', token, username),
       ipcRenderer.invoke('get-following', token, username),
-      ipcRenderer.invoke('get-user-details', token, username)
+      ipcRenderer.invoke('get-user-details', token, username),
     ]);
+
+    console.log('Followers fetched:', followers);
+    console.log('Following fetched:', following);
+    console.log('User details fetched:', userDetails);
 
     if (!followers || !following || !userDetails) {
       throw new Error("Failed to fetch followers, following, or user details.");
     }
 
-    // Update the profile badge with the user's actual profile picture and username
     document.getElementById('profile-pic').src = userDetails.avatar_url;
     document.getElementById('username').innerText = userDetails.login;
 
-    // Update the statistics in the sidebar
     document.getElementById('total-followers').innerText = followers.length;
     document.getElementById('total-following').innerText = following.length;
     document.getElementById('public-repos').innerText = userDetails.public_repos;
@@ -162,16 +167,22 @@ async function fetchGitHubData(token, username) {
     document.getElementById('account-created').innerText = new Date(userDetails.created_at).toLocaleDateString();
 
     populateTable(followers, following, token);
-    detectUnfollowers(token, username, followers); // Call to detect unfollowers
+    detectUnfollowers(token, username, followers);
   } catch (error) {
     console.error('Error fetching GitHub data:', error);
   }
 }
 
+
+
+
 // Function to populate the table with followers, avatars, and follow/unfollow buttons
 function populateTable(followers, following, token) {
   const followerTable = document.getElementById('followers-list').getElementsByTagName('tbody')[0];
   followerTable.innerHTML = ''; 
+
+  console.log('Fetched Followers:', followers);
+  console.log('Fetched Following:', following);
 
   followers.forEach(follower => {
     const row = followerTable.insertRow();
@@ -186,7 +197,13 @@ function populateTable(followers, following, token) {
     const nameCell = row.insertCell(1);
     nameCell.innerText = follower.login || 'No username';
 
-    const isFollowing = following.some(f => f.login === follower.login);
+    // Ensure the comparison is case insensitive and properly formatted
+    const isFollowing = following.some(f => {
+      const isSameUser = f.login.toLowerCase() === follower.login.toLowerCase();
+      console.log(`Comparing following user ${f.login.toLowerCase()} with follower ${follower.login.toLowerCase()}: ${isSameUser}`);
+      return isSameUser;
+    });
+
     const statusCell = row.insertCell(2);
     statusCell.innerText = isFollowing ? "Yes" : "No";
 
@@ -199,21 +216,30 @@ function populateTable(followers, following, token) {
     };
     profileCell.appendChild(profileButton);
 
-    // Action Button (Follow/Unfollow)
+    console.log(`User ${follower.login} is being followed: ${isFollowing}`);
+
     const actionCell = row.insertCell(4);
     const actionButton = document.createElement('button');
     actionButton.classList.add('action-btn');
     if (isFollowing) {
       actionButton.innerText = 'Unfollow';
-      actionButton.onclick = () => unfollowUser(token, follower.login, actionButton);
+      actionButton.onclick = () => {
+        console.log(`Attempting to unfollow ${follower.login}`);
+        unfollowUser(token, follower.login, actionButton);
+      };
     } else {
       actionButton.classList.add('follow');
       actionButton.innerText = 'Follow';
-      actionButton.onclick = () => followUser(token, follower.login, actionButton);
+      actionButton.onclick = () => {
+        console.log(`Attempting to follow ${follower.login}`);
+        followUser(token, follower.login, actionButton);
+      };
     }
     actionCell.appendChild(actionButton);
   });
 }
+
+
 
 // Function to detect unfollowers
 async function detectUnfollowers(token, username, currentFollowers) {
@@ -245,14 +271,49 @@ async function detectUnfollowers(token, username, currentFollowers) {
   }
 }
 
-// Function to follow a user
+
+// Updated fetchUserData function
+async function fetchUserData(token) {
+  try {
+    console.log('Fetching updated user data...');
+    const userDetails = await ipcRenderer.invoke('get-user-details', token);
+    const followers = await ipcRenderer.invoke('get-followers', token);
+    const following = await ipcRenderer.invoke('get-following', token);
+
+    // Log the fetched data for debugging
+    console.log('User details fetched:', userDetails);
+    console.log('Fetched Followers:', followers);
+    console.log('Fetched Following:', following);
+
+    // Ensure correct user data is updated in the table
+    updateTable(followers, following);
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+  }
+}
+
+// Function to update the table with new data
+function updateTable(followers, following) {
+  console.log('Updating the table with new data...');
+  populateTable(followers, following, token);
+}
+
 async function followUser(token, username, button) {
+  console.log(`Attempting to follow user: ${username}`);
   try {
     const response = await ipcRenderer.invoke('follow-user', token, username);
+    console.log(`Follow user response for ${username}:`, response);
+
     if (response.success) {
+      console.log(`Successfully followed ${username}`);
       button.innerText = 'Unfollow';
       button.classList.remove('follow');
       button.onclick = () => unfollowUser(token, username, button);
+
+      // Fetch updated followers and following list after a slight delay
+      setTimeout(() => fetchUserData(token), 2000);
+    } else {
+      console.error(`Failed to follow ${username}`, response);
     }
   } catch (error) {
     console.error('Error following user:', error);
@@ -261,12 +322,21 @@ async function followUser(token, username, button) {
 
 // Function to unfollow a user
 async function unfollowUser(token, username, button) {
+  console.log(`Attempting to unfollow user: ${username}`);
   try {
     const response = await ipcRenderer.invoke('unfollow-user', token, username);
+    console.log(`Unfollow user response for ${username}:`, response);
+
     if (response.success) {
+      console.log(`Successfully unfollowed ${username}`);
       button.innerText = 'Follow';
       button.classList.add('follow');
       button.onclick = () => followUser(token, username, button);
+
+      // Fetch updated followers and following list
+      await fetchUserData(token);
+    } else {
+      console.error(`Failed to unfollow ${username}`, response);
     }
   } catch (error) {
     console.error('Error unfollowing user:', error);

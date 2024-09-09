@@ -328,12 +328,35 @@ function getTokenData() {
   return parsedData;
 }
 
-// Helper function to fetch followers using GitHub API
+// Helper function to fetch all pages of followers
 async function getFollowers(token, username) {
-  const response = await axios.get(`https://api.github.com/users/${username}/followers`, {
-    headers: { Authorization: `token ${token}` }
-  });
-  return response.data;
+  let followers = [];
+  let page = 1;
+  let perPage = 100; // Number of followers per page
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const response = await axios.get(`https://api.github.com/users/${username}/followers`, {
+        headers: { Authorization: `token ${token}` },
+        params: { per_page: perPage, page }
+      });
+      
+      followers = followers.concat(response.data);
+      console.log(`Fetched followers page ${page}:`, response.data);
+
+      if (response.data.length < perPage) {
+        hasMore = false; // No more pages
+      } else {
+        page++; // Increment page number for next request
+      }
+    } catch (error) {
+      console.error("Error fetching followers:", error);
+      break;
+    }
+  }
+
+  return followers;
 }
 
 // Send notifications if unfollowers are detected
@@ -409,17 +432,35 @@ async function getTopRepositoriesByStars(token, username) {
 }
 
 
-// Correct function to fetch the following list
+// Helper function to fetch all pages of following
 async function getFollowing(token, username) {
-  try {
-    const response = await axios.get(`https://api.github.com/users/${username}/following`, {
-      headers: { Authorization: `token ${token}` }
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching following:", error);
-    return [];
+  let following = [];
+  let page = 1;
+  let perPage = 100; // Number of following per page
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const response = await axios.get(`https://api.github.com/users/${username}/following`, {
+        headers: { Authorization: `token ${token}` },
+        params: { per_page: perPage, page }
+      });
+
+      following = following.concat(response.data);
+      console.log(`Fetched following page ${page}:`, response.data);
+
+      if (response.data.length < perPage) {
+        hasMore = false; // No more pages
+      } else {
+        page++; // Increment page number for next request
+      }
+    } catch (error) {
+      console.error("Error fetching following:", error);
+      break;
+    }
   }
+
+  return following;
 }
 
 
@@ -435,15 +476,41 @@ ipcMain.handle('get-unfollowers', () => {
 
 ipcMain.handle('unfollow-user', async (event, token, username) => {
   try {
-    await axios.delete(`https://api.github.com/user/following/${username}`, {
-      headers: { Authorization: `token ${token}` }
-    });
+    const response = await axios.delete(
+      `https://api.github.com/user/following/${username}`,
+      {
+        headers: { Authorization: `token ${token}` },
+      }
+    );
+    console.log('Unfollow user response:', response.status, response.data);
     return { success: true };
   } catch (error) {
-    console.error('Error unfollowing user:', error);
+    console.error('Error unfollowing user:', error.response ? error.response.data : error.message);
     return { success: false, error };
   }
 });
+
+
+ipcMain.handle('follow-user', async (event, token, username) => {
+  try {
+    const response = await axios.put(
+      `https://api.github.com/user/following/${username}`,
+      {},
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          'Content-Length': 0,
+        },
+      }
+    );
+    console.log('Follow user response:', response.status, response.data);
+    return { success: true };
+  } catch (error) {
+    console.error('Error following user:', error.response ? error.response.data : error.message);
+    return { success: false, error };
+  }
+});
+
 
 ipcMain.handle('check-token', async (event) => {
   try {
@@ -475,10 +542,8 @@ ipcMain.handle('save-token', async (event, token, username) => {
 
 ipcMain.handle('get-followers', async (event, token, username) => {
   try {
-    const response = await axios.get(`https://api.github.com/users/${username}/followers`, {
-      headers: { Authorization: `token ${token}` }
-    });
-    return response.data;  
+    const followers = await getFollowers(token, username);
+    return followers;
   } catch (error) {
     console.error("Error fetching followers:", error);
     return [];
@@ -487,15 +552,15 @@ ipcMain.handle('get-followers', async (event, token, username) => {
 
 ipcMain.handle('get-following', async (event, token, username) => {
   try {
-    const response = await axios.get(`https://api.github.com/users/${username}/following`, {
-      headers: { Authorization: `token ${token}` }
-    });
-    return response.data;  
+    const following = await getFollowing(token, username);
+    console.log('Following data:', following);
+    return following;
   } catch (error) {
     console.error("Error fetching following:", error);
     return [];
   }
 });
+
 
 ipcMain.handle('get-user-details', async (event, token, username) => {
   try {
@@ -536,9 +601,11 @@ ipcMain.handle('store-followers', async (event, followers, username) => {
   );
 
   if (unfollowers.length > 0) {
-    notifyUnfollowers(unfollowers);
+    storeUnfollowers(unfollowers); // Ensure this line correctly stores unfollowers
+    notifyUnfollowers(unfollowers); // Notify users about unfollowers
   }
 });
+
 
 ipcMain.handle('get-previous-followers', (event, username) => {
   const followersFile = path.join(__dirname, `${username}_followers.json`);

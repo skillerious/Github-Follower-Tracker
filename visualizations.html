@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Data Visualizations</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #181a1b 0%, #1c1c1e 100%);
+      color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    #charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns */
+      gap: 50px; /* Increased gap for even better spacing */
+      width: 100%;
+      max-width: 1200px;
+      margin-top: 40px;
+      padding-bottom: 40px;
+    }
+
+    .chart-container {
+      width: 100%;
+      min-height: 380px; /* Ensure cards are at least this tall */
+      background: rgba(34, 34, 34, 0.85);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .chart-container:hover {
+      transform: translateY(-10px);
+      background: rgba(40, 40, 40, 0.9);
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .chart-title {
+      text-align: center;
+      font-size: 2.2em;
+      color: #61dafb;
+      margin: 30px 0;
+      text-shadow: 0 0 15px rgba(97, 218, 251, 0.6);
+    }
+
+    .back-btn {
+      background: linear-gradient(135deg, #61dafb, #4faedb);
+      color: #1c1c1e;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 1em;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .back-btn:hover {
+      background: linear-gradient(135deg, #4faedb, #61dafb);
+      transform: scale(1.1);
+      box-shadow: 0 4px 15px rgba(97, 218, 251, 0.5);
+    }
+
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      height: auto;
+    }
+
+    @media (max-width: 768px) {
+      #charts-grid {
+        grid-template-columns: 1fr; /* Single-column layout on smaller screens */
+        gap: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="back-btn" onclick="goHome()">Back</button>
+  <div class="chart-title">GitHub Data Visualizations</div>
+  <div id="charts-grid">
+    <div class="chart-container">
+      <canvas id="followerGrowthChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="followerVsFollowingChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="topReposChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="monthlyStarsGrowthChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    function goHome() {
+      ipcRenderer.send('go-home');
+    }
+
+    ipcRenderer.invoke('get-visualization-data').then(data => {
+      if (data) {
+        renderFollowerGrowthChart(data.followersGrowth);
+        renderFollowerVsFollowingChart(data.followers, data.following);
+        renderTopReposChart(data.topRepos);
+        renderMonthlyStarsGrowthChart(data.monthlyStars);
+      }
+    });
+
+    function renderFollowerGrowthChart(followersGrowth) {
+      const ctx = document.getElementById('followerGrowthChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: followersGrowth.map(entry => entry.date),
+          datasets: [{
+            label: 'Followers Growth',
+            data: followersGrowth.map(entry => entry.count),
+            backgroundColor: 'rgba(97, 218, 251, 0.2)',
+            borderColor: '#61dafb',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderFollowerVsFollowingChart(followers, following) {
+      const ctx = document.getElementById('followerVsFollowingChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Followers', 'Following'],
+          datasets: [{
+            data: [followers, following],
+            backgroundColor: ['#61dafb', '#f44336'],
+            hoverBackgroundColor: ['#4faedb', '#e53935']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        }
+      });
+    }
+
+    function renderTopReposChart(topRepos) {
+      const ctx = document.getElementById('topReposChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: topRepos.labels,
+          datasets: [{
+            label: 'Stars',
+            data: topRepos.data,
+            backgroundColor: ['#f44336', '#ffeb3b', '#4caf50', '#2196f3', '#9c27b0']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderMonthlyStarsGrowthChart(monthlyStars) {
+      const ctx = document.getElementById('monthlyStarsGrowthChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: monthlyStars.map(entry => entry.month),
+          datasets: [{
+            label: 'Stars Growth',
+            data: monthlyStars.map(entry => entry.count),
+            backgroundColor: 'rgba(97, 218, 251, 0.2)',
+            borderColor: '#61dafb',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
