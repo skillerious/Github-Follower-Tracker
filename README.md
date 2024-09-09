@@ -72,9 +72,13 @@ The **GitHub Follower Checker** is a powerful desktop application that allows yo
    npm start
    ```
 
+4. **Input Credentials**
+
+[![Screenshot-2024-09-09-225933.png](https://i.postimg.cc/SR0LW2Bz/Screenshot-2024-09-09-225933.png)](https://postimg.cc/bDT2PJNz)
+
 ## 🖥️ Usage
 
-1. **Launch the App**: Start the application to begin tracking your GitHub followers.
+1. **Launch the App**
 2. **Enter Your Credentials**: You'll be prompted to enter your GitHub **token** and **username** for authentication.
 3. **Dashboard Overview**: View a summary of your GitHub profile, including followers, unfollowers, repositories, and more.
 4. **Receive Real-Time Updates**: Get notified of any changes in your followers list.
@@ -107,9 +111,7 @@ The **GitHub Follower Checker** is a powerful desktop application that allows yo
 
 ## 🤝 Contributions
 
-We welcome all contributions to enhance this project! Follow these steps to contribute:
-
-
+We welcome all contributions to enhance this project!
 
 ## 🛡️ License
 
@@ -124,7 +126,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 📞 Contact
 
-For questions or suggestions, please reach out to [your-email@example.com](mailto:your-email@example.com).
+For questions or suggestions, please reach out to [your-email@example.com](mailto:skillerious@gmail.com).
 
 ## 💬 Feedback
 
