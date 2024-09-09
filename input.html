@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Token Input</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --background-color: #0e0f11;
+      --text-color: #f5f5f5;
+      --card-background: rgba(31, 31, 31, 0.75); /* Semi-transparent for glass effect */
+      --card-border: rgba(255, 255, 255, 0.15); /* Subtle border for the card */
+      --accent-color: #61dafb;
+      --shadow-color: rgba(0, 0, 0, 0.7);
+      --glass-blur: 10px;
+      --close-color: #aaa; /* Subtle color for the close button */
+      --close-hover-color: #61dafb; /* Blue color when hovered */
+    }
+
+    /* Removing scrollbar */
+    body {
+      background: radial-gradient(circle, #141619, #0d0d0e);
+      color: var(--text-color);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden; /* Hide scrollbars */
+    }
+
+    /* Make the whole container draggable */
+    .input-container {
+      position: relative;
+      background-color: var(--card-background);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px var(--shadow-color);
+      width: 420px;
+      height: 600px; /* Extended height */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: center;
+      backdrop-filter: blur(var(--glass-blur)); /* Frosted glass effect */
+      border: 1px solid var(--card-border);
+      -webkit-app-region: drag; /* Makes the container draggable */
+    }
+
+    /* Flat "X" close button */
+    .close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 1.2em;
+      color: var(--close-color);
+      cursor: pointer;
+      transition: color 0.3s ease;
+      -webkit-app-region: no-drag; /* Prevents drag for the close button */
+    }
+
+    .close-btn:hover {
+      color: var(--close-hover-color); /* Blue hover effect */
+    }
+
+    /* Styling for the icon image */
+    .icon-container {
+      display: flex;
+      justify-content: center; /* Ensures horizontal centering */
+    }
+
+    .icon {
+      width: 80px; /* Adjust size as needed */
+      height: 80px;
+      margin-bottom: 20px;
+      -webkit-app-region: no-drag; /* Prevents drag for the icon */
+    }
+
+    h2 {
+      color: var(--accent-color);
+      margin-bottom: 20px;
+      font-size: 1.5em;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      -webkit-app-region: no-drag; /* Prevents drag for the header */
+    }
+
+    input {
+      width: calc(100% - 20px);
+      padding: 12px;
+      margin: 5px 0; /* Reduced space between input fields */
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 1.1em;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-color);
+      transition: border 0.3s ease, background-color 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      -webkit-app-region: no-drag; /* Prevents drag for the input fields */
+    }
+
+    input:focus {
+      border: 1px solid var(--accent-color);
+      outline: none;
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Fancy Divider */
+    .divider {
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+      margin: 15px 0;
+    }
+
+    button {
+      padding: 12px 24px;
+      background-color: var(--accent-color);
+      color: #1c1c1e;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1.2em;
+      letter-spacing: 1px;
+      transition: background-color 0.3s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+      -webkit-app-region: no-drag; /* Prevents drag for the button */
+    }
+
+    button:hover {
+      background-color: #4faedb;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(31, 255, 255, 0.3); /* Glowing effect */
+    }
+
+    /* Info text section */
+    .info-section {
+      color: #ccc;
+      font-size: 0.9em;
+      line-height: 1.6;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="input-container">
+    <!-- Flat "X" close button -->
+    <div class="close-btn" id="close-window">&times;</div>
+
+    <!-- Centering the icon image -->
+    <div class="icon-container">
+      <img src="icon.png" alt="App Icon" class="icon">
+    </div>
+
+    <h2>Enter GitHub Credentials</h2>
+
+    <!-- Inputs -->
+    <input type="text" id="github-username" placeholder="GitHub Username" />
+    <input type="password" id="github-token" placeholder="GitHub Token" />
+
+    <!-- Fancy Divider -->
+    <div class="divider"></div>
+
+    <!-- Info Section -->
+    <div class="info-section">
+      Ensure that your GitHub token has the necessary permissions to access your repositories. 
+      Learn more about creating tokens on <a href="#" id="github-docs-link" style="color: var(--accent-color);">GitHub Docs</a>.
+    </div>
+
+    <!-- Save button -->
+    <button id="save-credentials">Save</button>
+  </div>
+
+  <script>
+    const { ipcRenderer, shell } = require('electron');
+
+    document.getElementById('save-credentials').addEventListener('click', async () => {
+      const userToken = document.getElementById('github-token').value;
+      const username = document.getElementById('github-username').value;
+
+      if (userToken && username) {
+        await ipcRenderer.invoke('save-token', userToken, username);
+        ipcRenderer.send('close-input-window');
+      } else {
+        alert("GitHub token and username are required to proceed.");
+      }
+    });
+
+    // Close window function for the "X" button
+    document.getElementById('close-window').addEventListener('click', () => {
+      ipcRenderer.send('close-input-window');
+    });
+
+    // Open GitHub Docs link in the default browser
+    document.getElementById('github-docs-link').addEventListener('click', (event) => {
+      event.preventDefault();
+      shell.openExternal('https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token');
+    });
+  </script>
+</body>
+</html>

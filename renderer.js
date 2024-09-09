@@ -16,8 +16,7 @@ window.onload = async () => {
         if (userToken && username) {
           await ipcRenderer.invoke('save-token', userToken, username);
           modal.style.display = 'none';
-          tokenData = { token: userToken, username };
-          fetchGitHubData(tokenData.token, tokenData.username);
+          ipcRenderer.send('close-input-window'); // Close input and open main window
         } else {
           alert("GitHub token and username are required to proceed.");
         }
@@ -26,35 +25,30 @@ window.onload = async () => {
       fetchGitHubData(tokenData.token, tokenData.username);
     }
 
-    // Fetch GitHub followers data every 5 minutes
     setInterval(() => {
       fetchGitHubData(tokenData.token, tokenData.username);
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000);
 
-    // Toolbar button actions
     document.getElementById('refresh-btn').addEventListener('click', () => {
       fetchGitHubData(tokenData.token, tokenData.username);
     });
 
     document.getElementById('settings-btn').addEventListener('click', () => {
-      ipcRenderer.send('open-settings');  // Open the settings window
+      ipcRenderer.send('open-settings');
     });
 
     document.getElementById('exit-btn').addEventListener('click', () => {
       ipcRenderer.send('exit-app');
     });
 
-    // Event Listener for Visualize Data Button
     document.getElementById('visualize-btn').addEventListener('click', () => {
       ipcRenderer.send('open-visualizations');
     });
-    
-    // Add listeners for theme and accent color updates
+
     ipcRenderer.on('update-theme', (event, theme, accentColor) => {
       applyTheme(theme, accentColor);
     });
 
-    // Return to Top functionality
     const returnToTopBtn = document.getElementById('return-to-top');
     const contentDiv = document.querySelector('.content');
     const toolbar = document.getElementById('toolbar');
@@ -63,14 +57,12 @@ window.onload = async () => {
       const halfwayPoint = contentDiv.scrollHeight / 2;
       const scrollTop = contentDiv.scrollTop;
       
-      // Show the "Return to Top" button when scrolling halfway
       if (scrollTop > halfwayPoint) {
         returnToTopBtn.style.display = 'flex';
       } else {
         returnToTopBtn.style.display = 'none';
       }
 
-      // Hide toolbar when scrolled down and show when at the top
       if (scrollTop > 100) {
         toolbar.classList.add('hidden');
       } else {
@@ -78,7 +70,6 @@ window.onload = async () => {
       }
     });
 
-    // Scroll back to top when Return to Top button is clicked
     returnToTopBtn.addEventListener('click', () => {
       contentDiv.scrollTo({
         top: 0,
@@ -86,7 +77,6 @@ window.onload = async () => {
       });
     });
 
-    // Fetch unfollowers and display in the table
     fetchUnfollowers();
 
   } catch (error) {
@@ -131,7 +121,6 @@ async function fetchUnfollowers() {
   }
 }
 
-
 // Function to apply theme and accent color
 function applyTheme(theme, accentColor) {
   document.body.className = theme; // Apply theme class to body
@@ -173,9 +162,6 @@ async function fetchGitHubData(token, username) {
   }
 }
 
-
-
-
 // Function to populate the table with followers, avatars, and follow/unfollow buttons
 function populateTable(followers, following, token) {
   const followerTable = document.getElementById('followers-list').getElementsByTagName('tbody')[0];
@@ -197,7 +183,6 @@ function populateTable(followers, following, token) {
     const nameCell = row.insertCell(1);
     nameCell.innerText = follower.login || 'No username';
 
-    // Ensure the comparison is case insensitive and properly formatted
     const isFollowing = following.some(f => {
       const isSameUser = f.login.toLowerCase() === follower.login.toLowerCase();
       console.log(`Comparing following user ${f.login.toLowerCase()} with follower ${follower.login.toLowerCase()}: ${isSameUser}`);
@@ -239,26 +224,22 @@ function populateTable(followers, following, token) {
   });
 }
 
-
-
 // Function to detect unfollowers
 async function detectUnfollowers(token, username, currentFollowers) {
   try {
     const previousFollowers = await ipcRenderer.invoke('get-previous-followers', username);
     
-    // Store current followers
     ipcRenderer.invoke('store-followers', currentFollowers, username);
 
     if (previousFollowers) {
       const previousFollowerLogins = previousFollowers.map(f => f.login);
       const currentFollowerLogins = currentFollowers.map(f => f.login);
 
-      // Detect unfollowers (in previous followers but not in current)
       const unfollowers = previousFollowers.filter(follower => !currentFollowerLogins.includes(follower.login));
 
       if (unfollowers.length > 0) {
         unfollowers.forEach(unfollower => {
-          if (unfollower.login) { // Ensure the unfollower has a valid login
+          if (unfollower.login) {
             new Notification('Unfollower Detected!', {
               body: `${unfollower.login} has unfollowed you.`
             });
@@ -271,33 +252,13 @@ async function detectUnfollowers(token, username, currentFollowers) {
   }
 }
 
-
-// Updated fetchUserData function
-async function fetchUserData(token) {
-  try {
-    console.log('Fetching updated user data...');
-    const userDetails = await ipcRenderer.invoke('get-user-details', token);
-    const followers = await ipcRenderer.invoke('get-followers', token);
-    const following = await ipcRenderer.invoke('get-following', token);
-
-    // Log the fetched data for debugging
-    console.log('User details fetched:', userDetails);
-    console.log('Fetched Followers:', followers);
-    console.log('Fetched Following:', following);
-
-    // Ensure correct user data is updated in the table
-    updateTable(followers, following);
-  } catch (error) {
-    console.error('Error fetching user data:', error);
-  }
+// Function to apply theme and accent color
+function applyTheme(theme, accentColor) {
+  document.body.className = theme;
+  document.documentElement.style.setProperty('--accent-color', accentColor);
 }
 
-// Function to update the table with new data
-function updateTable(followers, following) {
-  console.log('Updating the table with new data...');
-  populateTable(followers, following, token);
-}
-
+// Function to follow a user
 async function followUser(token, username, button) {
   console.log(`Attempting to follow user: ${username}`);
   try {
@@ -310,8 +271,7 @@ async function followUser(token, username, button) {
       button.classList.remove('follow');
       button.onclick = () => unfollowUser(token, username, button);
 
-      // Fetch updated followers and following list after a slight delay
-      setTimeout(() => fetchUserData(token), 2000);
+      setTimeout(() => fetchGitHubData(token, username), 2000);
     } else {
       console.error(`Failed to follow ${username}`, response);
     }
@@ -333,12 +293,35 @@ async function unfollowUser(token, username, button) {
       button.classList.add('follow');
       button.onclick = () => followUser(token, username, button);
 
-      // Fetch updated followers and following list
-      await fetchUserData(token);
+      await fetchGitHubData(token, username);
     } else {
       console.error(`Failed to unfollow ${username}`, response);
     }
   } catch (error) {
     console.error('Error unfollowing user:', error);
   }
+}
+
+// Updated fetchUserData function
+async function fetchUserData(token) {
+  try {
+    console.log('Fetching updated user data...');
+    const userDetails = await ipcRenderer.invoke('get-user-details', token);
+    const followers = await ipcRenderer.invoke('get-followers', token);
+    const following = await ipcRenderer.invoke('get-following', token);
+
+    console.log('User details fetched:', userDetails);
+    console.log('Fetched Followers:', followers);
+    console.log('Fetched Following:', following);
+
+    updateTable(followers, following);
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+  }
+}
+
+// Function to update the table with new data
+function updateTable(followers, following) {
+  console.log('Updating the table with new data...');
+  populateTable(followers, following, token);
 }
