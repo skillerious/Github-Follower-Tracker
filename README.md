@@ -1,7 +1,7 @@
 
 # 🚀 GitHub Follower Checker
 
-[![Screenshot-2024-09-08-175730.png](https://i.postimg.cc/rmj6S0BD/Screenshot-2024-09-08-175730.png)](https://postimg.cc/qhNZrRMr)
+[![Screenshot-2024-09-10-230059.png](https://i.postimg.cc/RVfJx4PC/Screenshot-2024-09-10-230059.png)](https://postimg.cc/1fm3phhb)
 
 The **GitHub Follower Checker** is a powerful desktop application that allows you to effortlessly track your GitHub followers, detect unfollowers, and visualize your profile's growth trends. Built with Electron, it offers a seamless experience with real-time data updates, insightful visualizations, and customizable settings.
 
@@ -132,4 +132,6 @@ For questions or suggestions, please reach out to [your-email@example.com](mailt
 
 Id love to hear your feedback! If you encounter any issues or have suggestions, please open an issue on the [GitHub repository](https://github.com/skillerious/github-follower-checker/issues).
 
-![](https://i.postimg.cc/vBbFgLNR/Screenshot-2024-09-08-181817.png)
+[![Screenshot-2024-09-10-230121.png](https://i.postimg.cc/FFwk67Vn/Screenshot-2024-09-10-230121.png)](https://postimg.cc/mhNrzZqQ)
+
+[![Screenshot-2024-09-10-230130.png](https://i.postimg.cc/rwk083b1/Screenshot-2024-09-10-230130.png)](https://postimg.cc/bsmNgCqr)
