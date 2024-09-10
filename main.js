@@ -83,6 +83,20 @@ function applySettings() {
   }, 24 * 60 * 60 * 1000);
 }
 
+// Function to read unfollowers from JSON file
+function getUnfollowersCount() {
+  try {
+    if (fs.existsSync(unfollowersFile)) {
+      const data = JSON.parse(fs.readFileSync(unfollowersFile, 'utf-8'));
+      return data.unfollowers ? data.unfollowers.length : 0;
+    }
+    return 0;
+  } catch (error) {
+    console.error('Error reading unfollowers.json:', error);
+    return 0;
+  }
+}
+
 // Create main window
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -184,6 +198,7 @@ ipcMain.on('close-input-window', () => {
   createMainWindow();
 });
 
+
 // Create settings window
 ipcMain.on('open-settings', () => {
   if (!settingsWindow) {
@@ -207,13 +222,9 @@ ipcMain.on('open-settings', () => {
   }
 });
 
-// IPC handler to open the visualizations window
-ipcMain.on('open-visualizations', () => {
-  if (!visualizationsWindow) {
-    createVisualizationsWindow();
-  } else {
-    visualizationsWindow.focus();
-  }
+// IPC handler to send unfollowers count to renderer process
+ipcMain.handle('get-unfollowers-count', (event) => {
+  return getUnfollowersCount();
 });
 
 ipcMain.on('go-home', () => {
@@ -360,7 +371,7 @@ async function getFollowers(token, username) {
       });
       
       followers = followers.concat(response.data);
-      console.log(`Fetched followers page ${page}:`, response.data);
+      
 
       if (response.data.length < perPage) {
         hasMore = false; // No more pages
@@ -392,6 +403,7 @@ function notifyUnfollowers(unfollowers) {
 
 // Other ipcMain.handle or ipcMain.on functions
 
+// IPC handler to get visualization data
 ipcMain.handle('get-visualization-data', async () => {
   try {
     const tokenData = getTokenData();
@@ -404,12 +416,22 @@ ipcMain.handle('get-visualization-data', async () => {
     const followersGrowth = JSON.parse(fs.readFileSync(followersGrowthFile, 'utf-8'));
     const starsGrowth = JSON.parse(fs.readFileSync(starsGrowthFile, 'utf-8'));
 
+    // Create additional data for new graphs
+    const followerGainLoss = calculateFollowerGainLoss(followersGrowth);
+    const topStarredReposOverTime = await getTopStarredReposOverTime(tokenData.token, tokenData.username);
+    const mostActiveDays = await calculateMostActiveDays(tokenData.token, tokenData.username);
+    const languagesUsed = await getLanguagesUsed(tokenData.token, tokenData.username);
+
     const data = {
       followersGrowth: followersGrowth.data,
       followers: followers.length,
       following: following.length,
       topRepos: topReposByStars,
-      monthlyStars: starsGrowth.data
+      monthlyStars: starsGrowth.data,
+      followerGainLoss: followerGainLoss,
+      topStarredReposOverTime: topStarredReposOverTime,
+      mostActiveDays: mostActiveDays,
+      languagesUsed: languagesUsed
     };
 
     return data;
@@ -418,6 +440,23 @@ ipcMain.handle('get-visualization-data', async () => {
     return {};
   }
 });
+
+// Helper functions for new graphs
+async function getTopStarredReposOverTime(token, username) {
+  // Logic to fetch top starred repositories over time
+}
+
+async function calculateMostActiveDays(token, username) {
+  // Logic to calculate most active days based on activity data
+}
+
+async function getLanguagesUsed(token, username) {
+  // Logic to fetch and count languages used across repositories
+}
+
+function calculateFollowerGainLoss(followersGrowth) {
+  // Logic to calculate follower gain/loss from followersGrowth data
+}
 
 // Function to fetch repositories and sort them by stars
 async function getTopRepositoriesByStars(token, username) {
@@ -459,7 +498,7 @@ async function getFollowing(token, username) {
       });
 
       following = following.concat(response.data);
-      console.log(`Fetched following page ${page}:`, response.data);
+      
 
       if (response.data.length < perPage) {
         hasMore = false;

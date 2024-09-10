@@ -11,6 +11,9 @@
   <!-- Load SimpleBar for Virtual Scrolling -->
   <link rel="stylesheet" href="node_modules/simplebar/dist/simplebar.min.css">
   
+  <!-- Chart.js for Data Visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     :root {
       --background-color: #181a1b;
@@ -331,7 +334,6 @@
       flex: 1;
       padding: 20px;
       overflow-y: auto;
-      /* SimpleBar will be initialized dynamically */
     }
 
     /* Table styling */
@@ -466,6 +468,89 @@
     #return-to-top:hover {
       background-color: #4faedb;
     }
+
+    /* Styles for the Visualizations Page */
+    .visualizations-page {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .chart-title {
+      font-size: 3em;
+      color: #58a6ff;
+      margin: 30px 0;
+      text-align: center;
+      text-shadow: 0 0 25px rgba(88, 166, 255, 0.8), 0 0 15px rgba(88, 166, 255, 0.6);
+      letter-spacing: 2px;
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      0% {
+        text-shadow: 0 0 15px rgba(88, 166, 255, 0.6), 0 0 25px rgba(88, 166, 255, 0.4);
+      }
+      100% {
+        text-shadow: 0 0 25px rgba(88, 166, 255, 1), 0 0 40px rgba(88, 166, 255, 0.9);
+      }
+    }
+
+    #charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
+      width: 100%;
+      max-width: 1400px;
+      margin-top: 20px;
+      padding-bottom: 40px;
+    }
+
+    .chart-container {
+      background: linear-gradient(135deg, rgba(32, 34, 37, 0.9), rgba(24, 25, 28, 0.8));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+      padding: 20px;
+      transition: transform 0.3s ease, box-shadow 0.4s ease, background 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .chart-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+      transition: transform 0.5s ease;
+      z-index: 0;
+    }
+
+    .chart-container:hover::before {
+      transform: rotate(180deg);
+    }
+
+    .chart-container:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 40px 70px rgba(0, 0, 0, 0.9);
+      background: linear-gradient(135deg, rgba(40, 42, 46, 0.95), rgba(30, 31, 34, 0.85));
+    }
+
+    .chart-container canvas {
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 768px) {
+      #charts-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -556,6 +641,8 @@
       
       <!-- Right side with buttons -->
       <div class="right">
+        <button id="followers-btn"><i class="fas fa-users"></i> Followers</button>
+        <button id="unfollowers-btn"><i class="fas fa-user-slash"></i> Unfollowers</button>
         <button id="visualize-btn"><i class="fas fa-chart-bar"></i> Visualize Data</button>
         <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
         <button id="settings-btn"><i class="fas fa-cog"></i> Settings</button>
@@ -563,45 +650,78 @@
       </div>
     </div>
 
-    <!-- Table to show followers and following status -->
-    <h2>Followers</h2>
-    <div data-simplebar style="max-height: 1000px; overflow-y: auto;">
-      <table id="followers-list">
-        <thead>
-          <tr>
-            <th>Avatar</th>
-            <th>Follower</th>
-            <th>Following Back?</th>
-            <th>Profile</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
+    <!-- Section for Followers -->
+    <div id="followers-section">
+      <h2>Followers</h2>
+      <div data-simplebar style="max-height: 1000px; overflow-y: auto;">
+        <table id="followers-list">
+          <thead>
+            <tr>
+              <th>Avatar</th>
+              <th>Follower</th>
+              <th>Following Back?</th>
+              <th>Profile</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Load More Followers Button -->
+      <button id="load-more-btn" class="load-more-btn">Load More Followers</button>
     </div>
 
-    <!-- Load More Followers Button -->
-    <button id="load-more-btn" class="load-more-btn">Load More Followers</button>
-
-    <!-- New Table for Unfollowers -->
-    <h2>Unfollowers</h2>
-    <div data-simplebar style="max-height: 800px; overflow-y: auto;">
-      <table id="unfollowers-list">
-        <thead>
-          <tr>
-            <th>Avatar</th>
-            <th>Username</th>
-            <th>Profile</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
+    <!-- Section for Unfollowers (initially hidden) -->
+    <div id="unfollowers-section" style="display: none;">
+      <h2>Unfollowers</h2>
+      <div data-simplebar style="max-height: 800px; overflow-y: auto;">
+        <table id="unfollowers-list">
+          <thead>
+            <tr>
+              <th>Avatar</th>
+              <th>Username</th>
+              <th>Profile</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- Section to show unfollowers -->
-    <div id="unfollowers"></div>
+    <!-- Section for Visualizations (initially hidden) -->
+    <div id="visualizations-section" class="visualizations-page">
+      <div class="chart-title">GitHub Data Visualizations</div>
+      <div id="charts-grid">
+        <div class="chart-container">
+          <canvas id="followerGrowthChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="followerVsFollowingChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="topReposChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="monthlyStarsGrowthChart"></canvas>
+        </div>
+        <!-- Additional Graphs -->
+        <div class="chart-container">
+          <canvas id="followerGainLossChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="topStarredReposOverTimeChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="mostActiveDaysChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="languagesUsedChart"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Return to Top Button -->
@@ -612,5 +732,236 @@
   <!-- Load SimpleBar for Virtual Scrolling -->
   <script src="node_modules/simplebar/dist/simplebar.min.js"></script>
   <script src="./renderer.js"></script>
+  <script>
+    // JavaScript to toggle between sections
+    document.getElementById('followers-btn').addEventListener('click', function() {
+      document.getElementById('followers-section').style.display = 'block';
+      document.getElementById('unfollowers-section').style.display = 'none';
+      document.getElementById('visualizations-section').style.display = 'none';
+    });
+
+    document.getElementById('unfollowers-btn').addEventListener('click', function() {
+      document.getElementById('followers-section').style.display = 'none';
+      document.getElementById('unfollowers-section').style.display = 'block';
+      document.getElementById('visualizations-section').style.display = 'none';
+    });
+
+    document.getElementById('visualize-btn').addEventListener('click', function() {
+      document.getElementById('followers-section').style.display = 'none';
+      document.getElementById('unfollowers-section').style.display = 'none';
+      document.getElementById('visualizations-section').style.display = 'flex';
+
+      ipcRenderer.invoke('get-visualization-data').then(data => {
+        if (data) {
+          renderFollowerGrowthChart(data.followersGrowth);
+          renderFollowerVsFollowingChart(data.followers, data.following);
+          renderTopReposChart(data.topRepos);
+          renderMonthlyStarsGrowthChart(data.monthlyStars);
+          renderFollowerGainLossChart(data.followerGainLoss);
+          renderTopStarredReposOverTimeChart(data.topStarredReposOverTime);
+          renderMostActiveDaysChart(data.mostActiveDays);
+          renderLanguagesUsedChart(data.languagesUsed);
+        }
+      });
+    });
+
+    // Visualization rendering functions
+    function renderFollowerGrowthChart(followersGrowth) {
+      const ctx = document.getElementById('followerGrowthChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: followersGrowth.map(entry => entry.date),
+          datasets: [{
+            label: 'Followers Growth',
+            data: followersGrowth.map(entry => entry.count),
+            backgroundColor: 'rgba(88, 166, 255, 0.2)',
+            borderColor: '#58a6ff',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderFollowerVsFollowingChart(followers, following) {
+      const ctx = document.getElementById('followerVsFollowingChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Followers', 'Following'],
+          datasets: [{
+            data: [followers, following],
+            backgroundColor: ['#58a6ff', '#f85149'],
+            hoverBackgroundColor: ['#4ea4ff', '#e63946']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        }
+      });
+    }
+
+    function renderTopReposChart(topRepos) {
+      const ctx = document.getElementById('topReposChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: topRepos.labels,
+          datasets: [{
+            label: 'Stars',
+            data: topRepos.data,
+            backgroundColor: ['#f85149', '#ffdc65', '#34d058', '#0366d6', '#6f42c1']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderMonthlyStarsGrowthChart(monthlyStars) {
+      const ctx = document.getElementById('monthlyStarsGrowthChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: monthlyStars.map(entry => entry.month),
+          datasets: [{
+            label: 'Stars Growth',
+            data: monthlyStars.map(entry => entry.count),
+            backgroundColor: 'rgba(88, 166, 255, 0.2)',
+            borderColor: '#58a6ff',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderFollowerGainLossChart(followerGainLoss) {
+      const ctx = document.getElementById('followerGainLossChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: followerGainLoss.map(entry => entry.date),
+          datasets: [{
+            label: 'Follower Gain/Loss',
+            data: followerGainLoss.map(entry => entry.count),
+            backgroundColor: followerGainLoss.map(entry => entry.count > 0 ? '#34d058' : '#e63946')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderTopStarredReposOverTimeChart(topStarredReposOverTime) {
+      const ctx = document.getElementById('topStarredReposOverTimeChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: topStarredReposOverTime.map(entry => entry.date),
+          datasets: topStarredReposOverTime.map(repo => ({
+            label: repo.name,
+            data: repo.stars,
+            fill: false,
+            borderColor: getRandomColor(),
+            borderWidth: 2
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderMostActiveDaysChart(mostActiveDays) {
+      const ctx = document.getElementById('mostActiveDaysChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: mostActiveDays.map(entry => entry.day),
+          datasets: [{
+            label: 'Most Active Days',
+            data: mostActiveDays.map(entry => entry.count),
+            backgroundColor: '#58a6ff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function renderLanguagesUsedChart(languagesUsed) {
+      const ctx = document.getElementById('languagesUsedChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: languagesUsed.map(entry => entry.language),
+          datasets: [{
+            data: languagesUsed.map(entry => entry.count),
+            backgroundColor: languagesUsed.map(() => getRandomColor())
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        }
+      });
+    }
+
+    // Helper function to generate random colors
+    function getRandomColor() {
+      const letters = '0123456789ABCDEF';
+      let color = '#';
+      for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+      }
+      return color;
+    }
+  </script>
 </body>
 </html>

@@ -88,6 +88,7 @@ window.onload = async () => {
     });
 
     fetchUnfollowers();
+    updateUnfollowersCount(); // Update unfollower count on load
 
   } catch (error) {
     console.error('Error in renderer.js:', error);
@@ -137,11 +138,28 @@ function applyTheme(theme, accentColor) {
   document.documentElement.style.setProperty('--accent-color', accentColor); // Apply accent color
 }
 
+// Function to update unfollower count in the sidebar
+async function updateUnfollowersCount() {
+  try {
+    const count = await ipcRenderer.invoke('get-unfollowers-count');
+    document.getElementById('unfollowers-count').innerText = count;
+  } catch (error) {
+    console.error('Error updating unfollowers count:', error);
+  }
+}
+
 // Function to fetch followers and following data and update the statistics panel
 async function fetchGitHubData(token, username, page = 1) {
   try {
     console.log('Fetching GitHub data for user:', username, 'Page:', page);
 
+    // Ensure tokenData is available and matches the logged-in user
+    if (!tokenData || tokenData.username.toLowerCase() !== username.toLowerCase()) {
+      console.error('Token data does not match the logged-in user.');
+      return;
+    }
+
+    // Fetch followers, following, and user details
     const [followers, following, userDetails] = await Promise.all([
       ipcRenderer.invoke('get-followers', token, username, page, followersPerPage),
       ipcRenderer.invoke('get-following', token, username),
@@ -156,6 +174,7 @@ async function fetchGitHubData(token, username, page = 1) {
       throw new Error("Failed to fetch followers, following, or user details.");
     }
 
+    // Update UI with the logged-in user's information
     document.getElementById('profile-pic').src = userDetails.avatar_url;
     document.getElementById('username').innerText = userDetails.login;
 
@@ -172,6 +191,8 @@ async function fetchGitHubData(token, username, page = 1) {
   }
 }
 
+
+
 // Function to populate the table with followers, avatars, and follow/unfollow buttons
 function populateTable(followers, following, token) {
   const followerTable = document.getElementById('followers-list').getElementsByTagName('tbody')[0];
@@ -180,7 +201,11 @@ function populateTable(followers, following, token) {
   console.log('Fetched Followers:', followers);
   console.log('Fetched Following:', following);
 
+  // Make sure to only show followers relevant to the logged-in user
+  const loggedInUsername = tokenData.username.toLowerCase();
+
   followers.forEach(follower => {
+    // Display followers in the table
     const row = followerTable.insertRow();
     
     const avatarCell = row.insertCell(0);
@@ -193,11 +218,7 @@ function populateTable(followers, following, token) {
     const nameCell = row.insertCell(1);
     nameCell.innerText = follower.login || 'No username';
 
-    const isFollowing = following.some(f => {
-      const isSameUser = f.login.toLowerCase() === follower.login.toLowerCase();
-      console.log(`Comparing following user ${f.login.toLowerCase()} with follower ${follower.login.toLowerCase()}: ${isSameUser}`);
-      return isSameUser;
-    });
+    const isFollowing = following.some(f => f.login.toLowerCase() === follower.login.toLowerCase());
 
     const statusCell = row.insertCell(2);
     statusCell.innerText = isFollowing ? "Yes" : "No";
@@ -210,8 +231,6 @@ function populateTable(followers, following, token) {
       window.open(follower.html_url, '_blank');
     };
     profileCell.appendChild(profileButton);
-
-    console.log(`User ${follower.login} is being followed: ${isFollowing}`);
 
     const actionCell = row.insertCell(4);
     const actionButton = document.createElement('button');
