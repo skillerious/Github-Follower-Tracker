@@ -103,6 +103,26 @@ function createMainWindow() {
   });
 }
 
+function createVisualizationsWindow() {
+  visualizationsWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    parent: mainWindow,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+
+  visualizationsWindow.loadFile('visualizations.html'); // Make sure this file exists
+
+  visualizationsWindow.on('closed', () => {
+    visualizationsWindow = null;
+  });
+}
+
+
 // Create input window
 function createInputWindow() {
   inputWindow = new BrowserWindow({

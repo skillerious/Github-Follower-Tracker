@@ -9,63 +9,99 @@
   <style>
     body {
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #181a1b 0%, #1c1c1e 100%);
-      color: #f5f5f5;
+      background: radial-gradient(circle at 20% 50%, #0d1117, #161b22, #1c2128);
+      color: #f0f6fc;
       margin: 0;
       padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
       overflow-x: hidden;
+      
+      /* Hide the scrollbar */
+      scrollbar-width: none; /* For Firefox */
+      -ms-overflow-style: none; /* For Internet Explorer and Edge */
+    }
+
+    body::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none; /* For Chrome, Safari, and Opera */
+    }
+
+    .chart-title {
+      font-size: 3em;
+      color: #58a6ff;
+      margin: 30px 0;
+      text-align: center;
+      text-shadow: 0 0 25px rgba(88, 166, 255, 0.8), 0 0 15px rgba(88, 166, 255, 0.6);
+      letter-spacing: 2px;
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      0% {
+        text-shadow: 0 0 15px rgba(88, 166, 255, 0.6), 0 0 25px rgba(88, 166, 255, 0.4);
+      }
+      100% {
+        text-shadow: 0 0 25px rgba(88, 166, 255, 1), 0 0 40px rgba(88, 166, 255, 0.9);
+      }
     }
 
     #charts-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns */
-      gap: 50px; /* Increased gap for even better spacing */
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
       width: 100%;
-      max-width: 1200px;
-      margin-top: 40px;
+      max-width: 1400px;
+      margin-top: 20px;
       padding-bottom: 40px;
     }
 
     .chart-container {
-      width: 100%;
-      min-height: 380px; /* Ensure cards are at least this tall */
-      background: rgba(34, 34, 34, 0.85);
-      backdrop-filter: blur(15px);
+      background: linear-gradient(135deg, rgba(32, 34, 37, 0.9), rgba(24, 25, 28, 0.8));
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+      border-radius: 15px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
       overflow: hidden;
+      padding: 20px;
+      transition: transform 0.3s ease, box-shadow 0.4s ease, background 0.3s ease;
       cursor: pointer;
+      position: relative;
+    }
+
+    .chart-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+      transition: transform 0.5s ease;
+      z-index: 0;
+    }
+
+    .chart-container:hover::before {
+      transform: rotate(180deg);
     }
 
     .chart-container:hover {
-      transform: translateY(-10px);
-      background: rgba(40, 40, 40, 0.9);
-      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.8);
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 40px 70px rgba(0, 0, 0, 0.9);
+      background: linear-gradient(135deg, rgba(40, 42, 46, 0.95), rgba(30, 31, 34, 0.85));
     }
 
-    .chart-title {
-      text-align: center;
-      font-size: 2.2em;
-      color: #61dafb;
-      margin: 30px 0;
-      text-shadow: 0 0 15px rgba(97, 218, 251, 0.6);
+    .chart-container canvas {
+      position: relative;
+      z-index: 1;
     }
 
     .back-btn {
-      background: linear-gradient(135deg, #61dafb, #4faedb);
-      color: #1c1c1e;
+      background: linear-gradient(135deg, #1f6feb, #58a6ff);
+      color: #fff;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 24px;
       border-radius: 25px;
       cursor: pointer;
       font-size: 1em;
@@ -76,21 +112,20 @@
     }
 
     .back-btn:hover {
-      background: linear-gradient(135deg, #4faedb, #61dafb);
+      background: linear-gradient(135deg, #58a6ff, #1f6feb);
       transform: scale(1.1);
-      box-shadow: 0 4px 15px rgba(97, 218, 251, 0.5);
+      box-shadow: 0 8px 25px rgba(88, 166, 255, 0.6);
     }
 
     canvas {
-      max-width: 100%;
-      max-height: 100%;
-      height: auto;
+      width: 100%;
+      height: 100%;
     }
 
     @media (max-width: 768px) {
       #charts-grid {
-        grid-template-columns: 1fr; /* Single-column layout on smaller screens */
-        gap: 30px;
+        grid-template-columns: 1fr;
+        gap: 20px;
       }
     }
   </style>
@@ -138,8 +173,8 @@
           datasets: [{
             label: 'Followers Growth',
             data: followersGrowth.map(entry => entry.count),
-            backgroundColor: 'rgba(97, 218, 251, 0.2)',
-            borderColor: '#61dafb',
+            backgroundColor: 'rgba(88, 166, 255, 0.2)',
+            borderColor: '#58a6ff',
             borderWidth: 2
           }]
         },
@@ -163,8 +198,8 @@
           labels: ['Followers', 'Following'],
           datasets: [{
             data: [followers, following],
-            backgroundColor: ['#61dafb', '#f44336'],
-            hoverBackgroundColor: ['#4faedb', '#e53935']
+            backgroundColor: ['#58a6ff', '#f85149'],
+            hoverBackgroundColor: ['#4ea4ff', '#e63946']
           }]
         },
         options: {
@@ -183,7 +218,7 @@
           datasets: [{
             label: 'Stars',
             data: topRepos.data,
-            backgroundColor: ['#f44336', '#ffeb3b', '#4caf50', '#2196f3', '#9c27b0']
+            backgroundColor: ['#f85149', '#ffdc65', '#34d058', '#0366d6', '#6f42c1']
           }]
         },
         options: {
@@ -207,8 +242,8 @@
           datasets: [{
             label: 'Stars Growth',
             data: monthlyStars.map(entry => entry.count),
-            backgroundColor: 'rgba(97, 218, 251, 0.2)',
-            borderColor: '#61dafb',
+            backgroundColor: 'rgba(88, 166, 255, 0.2)',
+            borderColor: '#58a6ff',
             borderWidth: 2
           }]
         },

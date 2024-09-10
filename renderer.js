@@ -1,9 +1,14 @@
 const { ipcRenderer } = require('electron');
+const debounce = require('lodash.debounce');
+
+let tokenData = null;
+let currentPage = 1;
+const followersPerPage = 100;
 
 // Initialize and fetch token data on load
 window.onload = async () => {
   try {
-    let tokenData = await ipcRenderer.invoke('check-token');
+    tokenData = await ipcRenderer.invoke('check-token');
 
     if (!tokenData) {
       const modal = document.getElementById('input-modal');
@@ -45,6 +50,11 @@ window.onload = async () => {
       ipcRenderer.send('open-visualizations');
     });
 
+    document.getElementById('load-more-btn').addEventListener('click', () => {
+      currentPage++;
+      fetchGitHubData(tokenData.token, tokenData.username, currentPage);
+    });
+
     ipcRenderer.on('update-theme', (event, theme, accentColor) => {
       applyTheme(theme, accentColor);
     });
@@ -53,7 +63,7 @@ window.onload = async () => {
     const contentDiv = document.querySelector('.content');
     const toolbar = document.getElementById('toolbar');
 
-    contentDiv.addEventListener('scroll', () => {
+    contentDiv.addEventListener('scroll', debounce(() => {
       const halfwayPoint = contentDiv.scrollHeight / 2;
       const scrollTop = contentDiv.scrollTop;
       
@@ -68,7 +78,7 @@ window.onload = async () => {
       } else {
         toolbar.classList.remove('hidden');
       }
-    });
+    }, 200));
 
     returnToTopBtn.addEventListener('click', () => {
       contentDiv.scrollTo({
@@ -128,12 +138,12 @@ function applyTheme(theme, accentColor) {
 }
 
 // Function to fetch followers and following data and update the statistics panel
-async function fetchGitHubData(token, username) {
+async function fetchGitHubData(token, username, page = 1) {
   try {
-    console.log('Fetching GitHub data for user:', username);
+    console.log('Fetching GitHub data for user:', username, 'Page:', page);
 
     const [followers, following, userDetails] = await Promise.all([
-      ipcRenderer.invoke('get-followers', token, username),
+      ipcRenderer.invoke('get-followers', token, username, page, followersPerPage),
       ipcRenderer.invoke('get-following', token, username),
       ipcRenderer.invoke('get-user-details', token, username),
     ]);
