@@ -170,10 +170,14 @@ function isTokenValid() {
   }
 }
 
-// When app is ready
+// When the app is ready
 app.whenReady().then(() => {
   if (isTokenValid()) {
     createMainWindow();
+    
+    // Check followers growth and calculate gain/loss on app startup
+    trackFollowersGrowth();
+
   } else {
     createInputWindow();
   }
@@ -184,6 +188,7 @@ app.whenReady().then(() => {
     }
   });
 });
+
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -281,26 +286,41 @@ async function checkForUnfollowers() {
   }
 }
 
-// Function to track followers growth
+// Add function to track followers growth
 async function trackFollowersGrowth() {
   const tokenData = getTokenData();
-  if (!tokenData) return;
+  if (!tokenData) {
+    console.log('Token data is missing or invalid.');
+    return;
+  }
 
   try {
+    // Fetch the current list of followers
     const followers = await getFollowers(tokenData.token, tokenData.username);
 
+    // Read existing follower growth data from the JSON file
     let followersGrowth = JSON.parse(fs.readFileSync(followersGrowthFile, 'utf-8'));
 
+    // Get today's date
     const today = new Date().toISOString().split('T')[0];
+
+    // Check if an entry for today's date already exists
     const todayEntry = followersGrowth.data.find(entry => entry.date === today);
 
     if (todayEntry) {
-      todayEntry.count = followers.length;
+      todayEntry.count = followers.length; // Update today's count
     } else {
-      followersGrowth.data.push({ date: today, count: followers.length });
+      followersGrowth.data.push({ date: today, count: followers.length }); // Add a new entry for today
     }
 
+    // Save updated data back to the JSON file
     fs.writeFileSync(followersGrowthFile, JSON.stringify(followersGrowth, null, 2));
+    console.log(`Followers growth updated for ${today}: ${followers.length} followers.`);
+
+    // Calculate follower gain/loss after updating growth data
+    const gainLossData = calculateFollowerGainLoss(followersGrowth);
+    console.log('Follower gain/loss calculated:', gainLossData); // Log the gain/loss data for verification
+
   } catch (error) {
     console.error("Error tracking followers growth:", error);
   }
@@ -318,25 +338,34 @@ async function trackMonthlyStarGrowth() {
 
     const repositories = reposResponse.data;
 
+    // Calculate total stars
     const totalStars = repositories.reduce((sum, repo) => sum + repo.stargazers_count, 0);
 
+    // Read existing data
     let starsGrowth = JSON.parse(fs.readFileSync(starsGrowthFile, 'utf-8'));
 
+    // Get current month
     const currentMonth = new Date().toISOString().substring(0, 7);
 
+    // Find existing entry for the current month
     const monthEntry = starsGrowth.data.find(entry => entry.month === currentMonth);
 
     if (monthEntry) {
-      monthEntry.count = totalStars;
+      monthEntry.count = totalStars; // Update the count
     } else {
-      starsGrowth.data.push({ month: currentMonth, count: totalStars });
+      starsGrowth.data.push({ month: currentMonth, count: totalStars }); // Add a new entry
     }
 
+    // Save updated data
     fs.writeFileSync(starsGrowthFile, JSON.stringify(starsGrowth, null, 2));
   } catch (error) {
     console.error("Error tracking star growth:", error);
   }
 }
+
+// Schedule this to run daily
+setInterval(trackMonthlyStarGrowth, 24 * 60 * 60 * 1000); // Every 24 hours
+
 
 // Store unfollowers to the file
 function storeUnfollowers(unfollowers) {
@@ -416,7 +445,6 @@ ipcMain.handle('get-visualization-data', async () => {
     const followersGrowth = JSON.parse(fs.readFileSync(followersGrowthFile, 'utf-8'));
     const starsGrowth = JSON.parse(fs.readFileSync(starsGrowthFile, 'utf-8'));
 
-    // Create additional data for new graphs
     const followerGainLoss = calculateFollowerGainLoss(followersGrowth);
     const topStarredReposOverTime = await getTopStarredReposOverTime(tokenData.token, tokenData.username);
     const mostActiveDays = await calculateMostActiveDays(tokenData.token, tokenData.username);
@@ -441,22 +469,115 @@ ipcMain.handle('get-visualization-data', async () => {
   }
 });
 
+
 // Helper functions for new graphs
 async function getTopStarredReposOverTime(token, username) {
-  // Logic to fetch top starred repositories over time
+  try {
+    const response = await axios.get(`https://api.github.com/users/${username}/repos`, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    const repos = response.data;
+    const starredRepos = repos.filter(repo => repo.stargazers_count > 0);
+    const sortedRepos = starredRepos.sort((a, b) => b.stargazers_count - a.stargazers_count);
+    const topRepos = sortedRepos.slice(0, 5);
+
+    const topStarredReposOverTime = topRepos.map(repo => ({
+      name: repo.name,
+      stars: repo.stargazers_count,
+      date: repo.created_at.split('T')[0] // Assuming date is creation date for simplicity
+    }));
+
+    return topStarredReposOverTime;
+  } catch (error) {
+    console.error('Error fetching top starred repos over time:', error);
+    return [];
+  }
 }
+
 
 async function calculateMostActiveDays(token, username) {
-  // Logic to calculate most active days based on activity data
+  try {
+    const eventsResponse = await axios.get(`https://api.github.com/users/${username}/events`, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    const events = eventsResponse.data;
+    const activityCount = {};
+
+    events.forEach(event => {
+      const day = new Date(event.created_at).toLocaleDateString('en-US', { weekday: 'long' });
+      activityCount[day] = (activityCount[day] || 0) + 1;
+    });
+
+    const mostActiveDays = Object.keys(activityCount).map(day => ({
+      day: day,
+      count: activityCount[day]
+    }));
+
+    return mostActiveDays.sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error('Error calculating most active days:', error);
+    return [];
+  }
 }
+
 
 async function getLanguagesUsed(token, username) {
-  // Logic to fetch and count languages used across repositories
+  try {
+    const response = await axios.get(`https://api.github.com/users/${username}/repos`, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    const repos = response.data;
+    const languageCount = {};
+
+    repos.forEach(repo => {
+      const language = repo.language;
+      if (language) {
+        languageCount[language] = (languageCount[language] || 0) + 1;
+      }
+    });
+
+    const languagesUsed = Object.keys(languageCount).map(language => ({
+      language: language,
+      count: languageCount[language]
+    }));
+
+    return languagesUsed.sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error('Error fetching languages used:', error);
+    return [];
+  }
 }
 
+
+// Function to calculate follower gain/loss from the followers growth data
 function calculateFollowerGainLoss(followersGrowth) {
-  // Logic to calculate follower gain/loss from followersGrowth data
+  const gainLossData = [];
+
+  if (!followersGrowth.data || followersGrowth.data.length < 2) {
+    console.log('Not enough data to calculate gain/loss.');
+    return gainLossData;
+  }
+
+  // Compare each day's count with the previous day to calculate the gain/loss
+  for (let i = 1; i < followersGrowth.data.length; i++) {
+    const previousEntry = followersGrowth.data[i - 1];
+    const currentEntry = followersGrowth.data[i];
+    const gainLoss = currentEntry.count - previousEntry.count;
+
+    gainLossData.push({
+      date: currentEntry.date,
+      count: gainLoss
+    });
+
+    console.log(`Gain/Loss for ${currentEntry.date}: ${gainLoss}`);
+  }
+
+  return gainLossData;
 }
+
 
 // Function to fetch repositories and sort them by stars
 async function getTopRepositoriesByStars(token, username) {
