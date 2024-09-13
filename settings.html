@@ -15,10 +15,10 @@
       background-color: #202124;
       color: #f5f5f5;
       margin: 0;
-      padding: 20px;
-      overflow-y: scroll;
-      scrollbar-width: thin; /* Firefox */
-      scrollbar-color: #333 #202124; /* Firefox */
+      padding: 0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
     }
 
     /* Custom scrollbar for WebKit browsers */
@@ -33,12 +33,39 @@
       border-radius: 4px;
     }
 
-    .container {
-      max-width: 100%;
-      margin: 0 auto;
+    /* Sidebar */
+    .sidebar {
+      width: 60px;
+      background-color: #2b2d30;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      align-items: center;
+      padding: 20px 0;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar a {
+      color: #61dafb;
+      text-decoration: none;
+      font-size: 1.6em;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 60px;
+    }
+
+    .sidebar a:hover {
+      background-color: #333;
+      border-radius: 6px;
+    }
+
+    /* Main content area */
+    .main-content {
+      flex-grow: 1;
+      padding: 20px;
+      overflow-y: auto;
     }
 
     .setting-group {
@@ -157,14 +184,29 @@
     .buttons .cancel-btn:hover {
       background-color: #e53935;
     }
+
+    /* Hide inactive sections */
+    .setting-group {
+      display: none;
+    }
+
+    .active {
+      display: block;
+    }
+
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Removed <h2>Settings</h2> here -->
+  <!-- Sidebar navigation -->
+  <div class="sidebar">
+    <a href="#" id="general-btn" onclick="showSection('general-settings')" title="General"><i class="fas fa-cogs"></i></a>
+    <a href="#" id="appearance-btn" onclick="showSection('appearance-settings')" title="Appearance"><i class="fas fa-paint-brush"></i></a>
+    <a href="#" id="account-btn" onclick="showSection('account-settings')" title="Account"><i class="fas fa-user"></i></a>
+  </div>
 
+  <div class="main-content">
     <!-- General Settings -->
-    <div class="setting-group" id="general-settings">
+    <div class="setting-group active" id="general-settings">
       <h3>General Settings</h3>
       
       <div class="setting-item">
@@ -192,7 +234,6 @@
         </label>
       </div>
 
-      <!-- New "Close to Tray" setting -->
       <div class="setting-item">
         <label for="close-to-tray">Close to Tray:</label>
         <label class="toggle">
@@ -201,7 +242,6 @@
         </label>
       </div>
 
-      <!-- Button with the same style as other save buttons -->
       <button onclick="saveGeneralSettings()">Save General Settings</button>
     </div>
 
@@ -227,7 +267,6 @@
         </select>
       </div>
 
-      <!-- Button with the same style as other save buttons -->
       <button onclick="saveAppearanceSettings()">Save Appearance Settings</button>
     </div>
 
@@ -255,6 +294,12 @@
   <script>
     const { ipcRenderer } = require('electron');
 
+    // Show only the selected section
+    function showSection(sectionId) {
+      document.querySelectorAll('.setting-group').forEach(group => group.classList.remove('active'));
+      document.getElementById(sectionId).classList.add('active');
+    }
+
     // Load all settings on page load
     window.onload = async () => {
       await loadAllSettings();
@@ -267,7 +312,7 @@
       document.getElementById('refresh-interval').value = settings.refreshInterval.toString();
       document.getElementById('notifications').checked = settings.notificationsEnabled;
       document.getElementById('startup').checked = settings.launchOnStartup;
-      document.getElementById('close-to-tray').checked = settings.closeToTray; // New setting
+      document.getElementById('close-to-tray').checked = settings.closeToTray; 
 
       // Load Appearance Settings
       document.getElementById('theme').value = settings.theme;
@@ -281,19 +326,17 @@
       }
     }
 
-    // General Settings Functions
     async function saveGeneralSettings() {
       const settings = {
         refreshInterval: parseInt(document.getElementById('refresh-interval').value),
         notificationsEnabled: document.getElementById('notifications').checked,
         launchOnStartup: document.getElementById('startup').checked,
-        closeToTray: document.getElementById('close-to-tray').checked // New setting
+        closeToTray: document.getElementById('close-to-tray').checked 
       };
       await ipcRenderer.invoke('save-settings', settings);
       alert('General settings saved successfully.');
     }
 
-    // Appearance Settings Functions
     async function saveAppearanceSettings() {
       const settings = {
         theme: document.getElementById('theme').value,
@@ -303,7 +346,6 @@
       alert('Appearance settings saved successfully.');
     }
 
-    // Account Settings Functions
     async function saveAccountSettings() {
       const newUsername = document.getElementById('change-username').value;
       const newToken = document.getElementById('change-token').value;
@@ -316,7 +358,6 @@
       }
     }
 
-    // Logout function to clear stored credentials
     function logout() {
       ipcRenderer.send('logout');
       alert('Logged out successfully.');

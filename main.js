@@ -10,12 +10,16 @@ let settingsWindow = null;
 let visualizationsWindow = null; // Window variable for Visualizations
 let intervalId;
 
-const tokenFile = path.join(__dirname, 'token.json');
-const followersFile = path.join(__dirname, 'followers.json');
-const unfollowersFile = path.join(__dirname, 'unfollowers.json'); // New file for unfollowers
-const settingsFile = path.join(__dirname, 'settings.json');
-const followersGrowthFile = path.join(__dirname, 'followers_growth.json');
-const starsGrowthFile = path.join(__dirname, 'monthly_stars_growth.json');
+// Get the user data path
+const userDataPath = app.getPath('userData');
+
+// Define paths to your JSON files within the user data directory
+const tokenFile = path.join(userDataPath, 'token.json');
+const followersFile = path.join(userDataPath, 'followers.json');
+const unfollowersFile = path.join(userDataPath, 'unfollowers.json'); // New file for unfollowers
+const settingsFile = path.join(userDataPath, 'settings.json');
+const followersGrowthFile = path.join(userDataPath, 'followers_growth.json');
+const starsGrowthFile = path.join(userDataPath, 'monthly_stars_growth.json');
 
 // Ensure required files exist
 if (!fs.existsSync(unfollowersFile)) {
@@ -214,8 +218,8 @@ ipcMain.on('close-input-window', () => {
 ipcMain.on('open-settings', () => {
   if (!settingsWindow) {
     settingsWindow = new BrowserWindow({
-      width: 500,
-      height: 600,
+      width: 610,
+      height: 357,
       modal: true,
       parent: mainWindow,
       autoHideMenuBar: true,

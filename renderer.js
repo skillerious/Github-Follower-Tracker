@@ -1,9 +1,13 @@
+// renderer.js
 const { ipcRenderer } = require('electron');
 const debounce = require('lodash.debounce');
 
 let tokenData = null;
 let currentPage = 1;
 const followersPerPage = 100;
+
+let allFollowers = []; // Global variable to store all followers
+let following = [];    // Global variable to store following
 
 // Initialize and fetch token data on load
 window.onload = async () => {
@@ -12,8 +16,8 @@ window.onload = async () => {
 
     if (!tokenData) {
       const modal = document.getElementById('input-modal');
-      modal.style.display = 'block'; 
-      
+      modal.style.display = 'block';
+
       document.getElementById('save-credentials').addEventListener('click', async () => {
         const userToken = document.getElementById('github-token').value;
         const username = document.getElementById('github-username').value;
@@ -27,13 +31,15 @@ window.onload = async () => {
         }
       });
     } else {
-      fetchGitHubData(tokenData.token, tokenData.username);
+      await fetchGitHubData(tokenData.token, tokenData.username);
     }
 
+    // Set up periodic data fetching
     setInterval(() => {
       fetchGitHubData(tokenData.token, tokenData.username);
     }, 5 * 60 * 1000);
 
+    // Set up event listeners for buttons
     document.getElementById('refresh-btn').addEventListener('click', () => {
       fetchGitHubData(tokenData.token, tokenData.username);
     });
@@ -55,6 +61,7 @@ window.onload = async () => {
       fetchGitHubData(tokenData.token, tokenData.username, currentPage);
     });
 
+    // Listen for theme updates
     ipcRenderer.on('update-theme', (event, theme, accentColor) => {
       applyTheme(theme, accentColor);
     });
@@ -63,10 +70,11 @@ window.onload = async () => {
     const contentDiv = document.querySelector('.content');
     const toolbar = document.getElementById('toolbar');
 
+    // Scroll event for content div
     contentDiv.addEventListener('scroll', debounce(() => {
       const halfwayPoint = contentDiv.scrollHeight / 2;
       const scrollTop = contentDiv.scrollTop;
-      
+
       if (scrollTop > halfwayPoint) {
         returnToTopBtn.style.display = 'flex';
       } else {
@@ -80,6 +88,7 @@ window.onload = async () => {
       }
     }, 200));
 
+    // Return to top button
     returnToTopBtn.addEventListener('click', () => {
       contentDiv.scrollTo({
         top: 0,
@@ -87,8 +96,32 @@ window.onload = async () => {
       });
     });
 
+    // Fetch initial unfollower data and update count
     fetchUnfollowers();
-    updateUnfollowersCount(); // Update unfollower count on load
+    updateUnfollowersCount();
+
+    // Search bar and clear button elements
+    const searchBar = document.getElementById('search-bar');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+
+  
+    // Event listener for search input
+    searchBar.addEventListener('input', () => {
+      const searchTerm = searchBar.value.toLowerCase().trim();
+
+      const filteredFollowers = allFollowers.filter(follower =>
+        follower.login.toLowerCase().includes(searchTerm)
+      );
+      populateTable(filteredFollowers, following, tokenData.token);
+    });
+
+    // Event listener for clear search button
+    clearSearchBtn.addEventListener('click', () => {
+      searchBar.value = ''; // Clear the search field
+      populateTable(allFollowers, following, tokenData.token); // Reset the followers list
+      searchBar.focus(); //
+    });
+    
 
   } catch (error) {
     console.error('Error in renderer.js:', error);
@@ -96,42 +129,42 @@ window.onload = async () => {
   }
 };
 
+
 // Function to fetch unfollowers and update the table
 async function fetchUnfollowers() {
   try {
-      const unfollowers = await ipcRenderer.invoke('get-unfollowers');
+    const unfollowers = await ipcRenderer.invoke('get-unfollowers');
 
-      const unfollowerTable = document.getElementById('unfollowers-list').getElementsByTagName('tbody')[0];
-      unfollowerTable.innerHTML = ''; // Clear the table content
+    const unfollowerTable = document.getElementById('unfollowers-list').getElementsByTagName('tbody')[0];
+    unfollowerTable.innerHTML = ''; // Clear the table content
 
-      unfollowers.forEach(unfollower => {
-          const row = unfollowerTable.insertRow();
-          
-          const avatarCell = row.insertCell(0);
-          const avatar = document.createElement('img');
-          avatar.src = unfollower.avatar_url || ''; 
-          avatar.alt = unfollower.login || 'No username';
-          avatar.classList.add('avatar');
-          avatarCell.appendChild(avatar);
-          
-          const nameCell = row.insertCell(1);
-          nameCell.innerText = unfollower.login || 'No username';
+    unfollowers.forEach(unfollower => {
+      const row = unfollowerTable.insertRow();
 
-          const profileCell = row.insertCell(2);
-          const profileButton = document.createElement('button');
-          profileButton.classList.add('profile-btn');
-          profileButton.innerText = 'View Profile';
-          profileButton.onclick = () => {
-              window.open(unfollower.html_url, '_blank');
-          };
-          profileCell.appendChild(profileButton);
-      });
+      const avatarCell = row.insertCell(0);
+      const avatar = document.createElement('img');
+      avatar.src = unfollower.avatar_url || '';
+      avatar.alt = unfollower.login || 'No username';
+      avatar.classList.add('avatar');
+      avatarCell.appendChild(avatar);
+
+      const nameCell = row.insertCell(1);
+      nameCell.innerText = unfollower.login || 'No username';
+
+      const profileCell = row.insertCell(2);
+      const profileButton = document.createElement('button');
+      profileButton.classList.add('profile-btn');
+      profileButton.innerText = 'View Profile';
+      profileButton.onclick = () => {
+        window.open(unfollower.html_url, '_blank');
+      };
+      profileCell.appendChild(profileButton);
+    });
 
   } catch (error) {
-      console.error('Error fetching unfollowers:', error);
+    console.error('Error fetching unfollowers:', error);
   }
 }
-
 
 // Function to apply theme and accent color
 function applyTheme(theme, accentColor) {
@@ -161,19 +194,23 @@ async function fetchGitHubData(token, username, page = 1) {
     }
 
     // Fetch followers, following, and user details
-    const [followers, following, userDetails] = await Promise.all([
+    const [followers, followingData, userDetails] = await Promise.all([
       ipcRenderer.invoke('get-followers', token, username, page, followersPerPage),
       ipcRenderer.invoke('get-following', token, username),
       ipcRenderer.invoke('get-user-details', token, username),
     ]);
 
     console.log('Followers fetched:', followers);
-    console.log('Following fetched:', following);
+    console.log('Following fetched:', followingData);
     console.log('User details fetched:', userDetails);
 
-    if (!followers || !following || !userDetails) {
+    if (!followers || !followingData || !userDetails) {
       throw new Error("Failed to fetch followers, following, or user details.");
     }
+
+    // Store the fetched data globally
+    allFollowers = followers;
+    following = followingData;
 
     // Update UI with the logged-in user's information
     document.getElementById('profile-pic').src = userDetails.avatar_url;
@@ -185,37 +222,33 @@ async function fetchGitHubData(token, username, page = 1) {
     document.getElementById('stars-received').innerText = userDetails.total_stars;
     document.getElementById('account-created').innerText = new Date(userDetails.created_at).toLocaleDateString();
 
-    populateTable(followers, following, token);
+    // Populate the table with the followers
+    populateTable(allFollowers, following, token);
+
     detectUnfollowers(token, username, followers);
   } catch (error) {
     console.error('Error fetching GitHub data:', error);
   }
 }
 
-
-
 // Function to populate the table with followers, avatars, and follow/unfollow buttons
 function populateTable(followers, following, token) {
   const followerTable = document.getElementById('followers-list').getElementsByTagName('tbody')[0];
-  followerTable.innerHTML = ''; 
+  followerTable.innerHTML = '';
 
-  console.log('Fetched Followers:', followers);
-  console.log('Fetched Following:', following);
-
-  // Make sure to only show followers relevant to the logged-in user
-  const loggedInUsername = tokenData.username.toLowerCase();
+  console.log('Followers to display:', followers);
 
   followers.forEach(follower => {
     // Display followers in the table
     const row = followerTable.insertRow();
-    
+
     const avatarCell = row.insertCell(0);
     const avatar = document.createElement('img');
-    avatar.src = follower.avatar_url || ''; 
+    avatar.src = follower.avatar_url || '';
     avatar.alt = follower.login || 'No username';
     avatar.classList.add('avatar');
     avatarCell.appendChild(avatar);
-    
+
     const nameCell = row.insertCell(1);
     nameCell.innerText = follower.login || 'No username';
 
@@ -254,11 +287,11 @@ function populateTable(followers, following, token) {
   });
 }
 
-// Function to detect unfollowers and automatically unfollow them if you're following them, with refined notifications
+// Function to detect unfollowers and automatically unfollow them if you're following them
 async function detectUnfollowers(token, username, currentFollowers) {
   try {
     const previousFollowers = await ipcRenderer.invoke('get-previous-followers', username);
-    
+
     // Store the current followers for future comparisons
     ipcRenderer.invoke('store-followers', currentFollowers, username);
 
@@ -280,7 +313,6 @@ async function detectUnfollowers(token, username, currentFollowers) {
             });
 
             // Check if you're following the unfollower and automatically unfollow them
-            const following = await ipcRenderer.invoke('get-following', token, username);
             const isFollowing = following.some(f => f.login.toLowerCase() === unfollower.login.toLowerCase());
 
             if (isFollowing) {
@@ -306,12 +338,6 @@ async function detectUnfollowers(token, username, currentFollowers) {
   }
 }
 
-// Function to apply theme and accent color
-function applyTheme(theme, accentColor) {
-  document.body.className = theme;
-  document.documentElement.style.setProperty('--accent-color', accentColor);
-}
-
 // Function to follow a user
 async function followUser(token, username, button) {
   console.log(`Attempting to follow user: ${username}`);
@@ -325,7 +351,7 @@ async function followUser(token, username, button) {
       button.classList.remove('follow');
       button.onclick = () => unfollowUser(token, username, button);
 
-      setTimeout(() => fetchGitHubData(token, username), 2000);
+      setTimeout(() => fetchGitHubData(token, tokenData.username), 2000);
     } else {
       console.error(`Failed to follow ${username}`, response);
     }
@@ -343,7 +369,7 @@ async function unfollowUser(token, username, button = null) {
 
     if (response.success) {
       console.log(`Successfully unfollowed ${username}`);
-      
+
       // If a button was provided, update its text (for manual unfollow actions)
       if (button) {
         button.innerText = 'Follow';
@@ -352,7 +378,7 @@ async function unfollowUser(token, username, button = null) {
       }
 
       // Optionally refresh data after unfollowing
-      await fetchGitHubData(token, username);
+      await fetchGitHubData(token, tokenData.username);
     } else {
       console.error(`Failed to unfollow ${username}`, response);
     }
@@ -361,6 +387,11 @@ async function unfollowUser(token, username, button = null) {
   }
 }
 
+// Function to apply theme and accent color
+function applyTheme(theme, accentColor) {
+  document.body.className = theme;
+  document.documentElement.style.setProperty('--accent-color', accentColor);
+}
 
 // Updated fetchUserData function
 async function fetchUserData(token) {
@@ -368,13 +399,17 @@ async function fetchUserData(token) {
     console.log('Fetching updated user data...');
     const userDetails = await ipcRenderer.invoke('get-user-details', token);
     const followers = await ipcRenderer.invoke('get-followers', token);
-    const following = await ipcRenderer.invoke('get-following', token);
+    const followingData = await ipcRenderer.invoke('get-following', token);
 
     console.log('User details fetched:', userDetails);
     console.log('Fetched Followers:', followers);
-    console.log('Fetched Following:', following);
+    console.log('Fetched Following:', followingData);
 
-    updateTable(followers, following);
+    // Store the fetched data globally
+    allFollowers = followers;
+    following = followingData;
+
+    updateTable(allFollowers, following);
   } catch (error) {
     console.error('Error fetching user data:', error);
   }
@@ -383,5 +418,5 @@ async function fetchUserData(token) {
 // Function to update the table with new data
 function updateTable(followers, following) {
   console.log('Updating the table with new data...');
-  populateTable(followers, following, token);
+  populateTable(followers, following, tokenData.token);
 }
