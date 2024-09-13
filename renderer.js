@@ -99,38 +99,39 @@ window.onload = async () => {
 // Function to fetch unfollowers and update the table
 async function fetchUnfollowers() {
   try {
-    const unfollowers = await ipcRenderer.invoke('get-unfollowers');
+      const unfollowers = await ipcRenderer.invoke('get-unfollowers');
 
-    const unfollowerTable = document.getElementById('unfollowers-list').getElementsByTagName('tbody')[0];
-    unfollowerTable.innerHTML = ''; // Clear the table content
+      const unfollowerTable = document.getElementById('unfollowers-list').getElementsByTagName('tbody')[0];
+      unfollowerTable.innerHTML = ''; // Clear the table content
 
-    unfollowers.forEach(unfollower => {
-      const row = unfollowerTable.insertRow();
-      
-      const avatarCell = row.insertCell(0);
-      const avatar = document.createElement('img');
-      avatar.src = unfollower.avatar_url || ''; 
-      avatar.alt = unfollower.login || 'No username';
-      avatar.classList.add('avatar');
-      avatarCell.appendChild(avatar);
-      
-      const nameCell = row.insertCell(1);
-      nameCell.innerText = unfollower.login || 'No username';
+      unfollowers.forEach(unfollower => {
+          const row = unfollowerTable.insertRow();
+          
+          const avatarCell = row.insertCell(0);
+          const avatar = document.createElement('img');
+          avatar.src = unfollower.avatar_url || ''; 
+          avatar.alt = unfollower.login || 'No username';
+          avatar.classList.add('avatar');
+          avatarCell.appendChild(avatar);
+          
+          const nameCell = row.insertCell(1);
+          nameCell.innerText = unfollower.login || 'No username';
 
-      const profileCell = row.insertCell(2);
-      const profileButton = document.createElement('button');
-      profileButton.classList.add('profile-btn');
-      profileButton.innerText = 'View Profile';
-      profileButton.onclick = () => {
-        window.open(unfollower.html_url, '_blank');
-      };
-      profileCell.appendChild(profileButton);
-    });
+          const profileCell = row.insertCell(2);
+          const profileButton = document.createElement('button');
+          profileButton.classList.add('profile-btn');
+          profileButton.innerText = 'View Profile';
+          profileButton.onclick = () => {
+              window.open(unfollower.html_url, '_blank');
+          };
+          profileCell.appendChild(profileButton);
+      });
 
   } catch (error) {
-    console.error('Error fetching unfollowers:', error);
+      console.error('Error fetching unfollowers:', error);
   }
 }
+
 
 // Function to apply theme and accent color
 function applyTheme(theme, accentColor) {
@@ -253,27 +254,51 @@ function populateTable(followers, following, token) {
   });
 }
 
-// Function to detect unfollowers
+// Function to detect unfollowers and automatically unfollow them if you're following them, with refined notifications
 async function detectUnfollowers(token, username, currentFollowers) {
   try {
     const previousFollowers = await ipcRenderer.invoke('get-previous-followers', username);
     
+    // Store the current followers for future comparisons
     ipcRenderer.invoke('store-followers', currentFollowers, username);
 
     if (previousFollowers) {
       const previousFollowerLogins = previousFollowers.map(f => f.login);
       const currentFollowerLogins = currentFollowers.map(f => f.login);
 
+      // Detect unfollowers
       const unfollowers = previousFollowers.filter(follower => !currentFollowerLogins.includes(follower.login));
 
       if (unfollowers.length > 0) {
-        unfollowers.forEach(unfollower => {
+        unfollowers.forEach(async (unfollower) => {
           if (unfollower.login) {
-            new Notification('Unfollower Detected!', {
-              body: `${unfollower.login} has unfollowed you.`
+            // Refined notification for unfollower
+            new Notification('Unfollower Detected', {
+              body: `${unfollower.login} has unfollowed you.`,
+              icon: unfollower.avatar_url || '', // Use the unfollower's avatar for a personal touch
+              silent: true, // Make the notification silent to avoid interrupting the user
             });
+
+            // Check if you're following the unfollower and automatically unfollow them
+            const following = await ipcRenderer.invoke('get-following', token, username);
+            const isFollowing = following.some(f => f.login.toLowerCase() === unfollower.login.toLowerCase());
+
+            if (isFollowing) {
+              console.log(`You are still following ${unfollower.login}, unfollowing them now.`);
+              await unfollowUser(token, unfollower.login); // Automatically unfollow them
+
+              // Refined notification for successful automatic unfollow
+              new Notification('Automatic Unfollow', {
+                body: `You have automatically unfollowed ${unfollower.login}.`,
+                icon: unfollower.avatar_url || '', // Include the unfollower's avatar
+                silent: true, // Silent notification to avoid disruption
+              });
+            }
           }
         });
+
+        // Update the UI with the new unfollowers
+        fetchUnfollowers();
       }
     }
   } catch (error) {
@@ -310,7 +335,7 @@ async function followUser(token, username, button) {
 }
 
 // Function to unfollow a user
-async function unfollowUser(token, username, button) {
+async function unfollowUser(token, username, button = null) {
   console.log(`Attempting to unfollow user: ${username}`);
   try {
     const response = await ipcRenderer.invoke('unfollow-user', token, username);
@@ -318,10 +343,15 @@ async function unfollowUser(token, username, button) {
 
     if (response.success) {
       console.log(`Successfully unfollowed ${username}`);
-      button.innerText = 'Follow';
-      button.classList.add('follow');
-      button.onclick = () => followUser(token, username, button);
+      
+      // If a button was provided, update its text (for manual unfollow actions)
+      if (button) {
+        button.innerText = 'Follow';
+        button.classList.add('follow');
+        button.onclick = () => followUser(token, username, button);
+      }
 
+      // Optionally refresh data after unfollowing
       await fetchGitHubData(token, username);
     } else {
       console.error(`Failed to unfollow ${username}`, response);
@@ -330,6 +360,7 @@ async function unfollowUser(token, username, button) {
     console.error('Error unfollowing user:', error);
   }
 }
+
 
 // Updated fetchUserData function
 async function fetchUserData(token) {

@@ -70,7 +70,8 @@ function applySettings() {
   mainWindow.on('close', (event) => {
     if (!app.isQuitting && settings.closeToTray) {
       event.preventDefault();
-      mainWindow.hide();
+      mainWindow.hide(); // Hide the window instead of closing
+      createTray(); // Ensure tray is created when the window is hidden
     } else {
       app.isQuitting = true;
       app.quit();
@@ -82,6 +83,7 @@ function applySettings() {
     trackMonthlyStarGrowth();
   }, 24 * 60 * 60 * 1000);
 }
+
 
 // Function to read unfollowers from JSON file
 function getUnfollowersCount() {
@@ -187,7 +189,11 @@ app.whenReady().then(() => {
       isTokenValid() ? createMainWindow() : createInputWindow();
     }
   });
+
+  // Ensure the tray icon is created when the app is ready
+  createTray();
 });
+
 
 
 app.on('window-all-closed', () => {
@@ -241,23 +247,33 @@ ipcMain.on('go-home', () => {
 
 // Create tray icon and menu
 function createTray() {
-  tray = new Tray(path.join(__dirname, 'icon.png'));
+  if (!tray) {
+    tray = new Tray(path.join(__dirname, 'icon.png')); // Make sure the path to your icon is correct
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show App', click: () => { mainWindow.show(); } },
-    { label: 'Exit', click: () => {
-      app.isQuitting = true;
-      app.quit();
-    }},
-  ]);
+    const contextMenu = Menu.buildFromTemplate([
+      { label: 'Show App', click: () => { 
+          if (mainWindow) {
+            mainWindow.show(); 
+          }
+        } 
+      },
+      { label: 'Exit', click: () => {
+        app.isQuitting = true;
+        app.quit();
+      }}
+    ]);
 
-  tray.setToolTip('GitHub Follower Checker');
-  tray.setContextMenu(contextMenu);
+    tray.setToolTip('GitHub Follower Checker');
+    tray.setContextMenu(contextMenu);
 
-  tray.on('click', () => {
-    mainWindow.show();
-  });
+    tray.on('click', () => {
+      if (mainWindow) {
+        mainWindow.show();
+      }
+    });
+  }
 }
+
 
 // Check for unfollowers
 async function checkForUnfollowers() {
@@ -277,8 +293,8 @@ async function checkForUnfollowers() {
       if (unfollowers.length > 0) {
         notifyUnfollowers(unfollowers);
         storeUnfollowers(unfollowers);  // Store unfollowers to the file
-      }
     }
+}
 
     fs.writeFileSync(followersFile, JSON.stringify({ followers, lastChecked: new Date() }));
   } catch (error) {
@@ -369,9 +385,9 @@ setInterval(trackMonthlyStarGrowth, 24 * 60 * 60 * 1000); // Every 24 hours
 
 // Store unfollowers to the file
 function storeUnfollowers(unfollowers) {
-  fs.writeFileSync(unfollowersFile, JSON.stringify({ unfollowers, lastChecked: new Date() }));
+  const data = { unfollowers, lastChecked: new Date() };
+  fs.writeFileSync(unfollowersFile, JSON.stringify(data, null, 2)); // Ensure correct format and spacing
 }
-
 // Helper function to get the token and username from the saved file
 function getTokenData() {
   if (!fs.existsSync(tokenFile)) return null;
@@ -638,11 +654,12 @@ async function getFollowing(token, username) {
 // IPC handlers for various actions
 ipcMain.handle('get-unfollowers', () => {
   if (fs.existsSync(unfollowersFile)) {
-    const data = JSON.parse(fs.readFileSync(unfollowersFile, 'utf-8'));
-    return data.unfollowers || [];
+      const data = JSON.parse(fs.readFileSync(unfollowersFile, 'utf-8'));
+      return data.unfollowers || [];
   }
   return [];
 });
+
 
 ipcMain.handle('unfollow-user', async (event, token, username) => {
   try {
