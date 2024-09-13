@@ -103,7 +103,6 @@ The **GitHub Follower Checker** is a robust desktop application designed to help
 - **\`main.js\`**: Core backend functionality, including Electron setup, API handling, and background processes.
 - **\`renderer.js\`**: Handles frontend logic and interaction with the DOM.
 - **\`index.html\`**: Main user interface structure.
-- **\`visualizations.html\`**: Dedicated page for visualizing user data using charts and graphs.
 - **\`settings.html\`**: Interface for user settings and preferences.
 
 ### Adding New Features
