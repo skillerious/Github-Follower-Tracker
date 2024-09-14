@@ -16,7 +16,10 @@ The **GitHub Follower Checker** is a robust desktop application designed to help
 - Keep a history of all unfollowers for easy reference.
 
 ### 🔄 **Automatic Unfollowing**
-- If someone unfollows you, the app will check if you're following them.
+- If someone unfollows you, the app will check if you're following them then unfollow them automatically.
+
+### 🔍 **Search Followers**
+- Search your followers with a handy search bar
 
 ### 📊 **Data Visualization**
 - Comprehensive charts and graphs powered by [Chart.js](https://www.chartjs.org/) for:
