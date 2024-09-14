@@ -135,7 +135,7 @@ For questions or suggestions, please reach out to [skillerious@gmail.com](mailto
 
 ## 💬 Feedback
 
-We would love to hear your feedback! If you encounter any issues or have suggestions, please open an issue on the [GitHub repository](https://github.com/skillerious/Github-Follower-Tracker).
+We would love to hear your feedback! If you encounter any issues or have suggestions, please open an issue on the [GitHub repository](https://github.com/skillerious/Github-Follower-Tracker/issues).
 
 [![Screenshot-2024-09-10-230121.png](https://i.postimg.cc/FFwk67Vn/Screenshot-2024-09-10-230121.png)](https://postimg.cc/mhNrzZqQ)
 
